@@ -10,30 +10,16 @@ enum Lg
 	C, X, R, G, N, M, Z, P, J, D, U
 }
 
-const String[] C0 = {
-	"/usr/local/gcc-16.1/bin/gcc",
-	"/home/cero/llvm-install/bin/clang",
-	"/usr/bin/gcc",
-	"/usr/bin/clang",
-	"/usr/bin/cc",
-};
-
-const String[] C1 = {
-	"/usr/local/gcc-16.1/bin/g++",
-	"/home/cero/llvm-install/bin/clang++",
-	"/usr/bin/g++",
-	"/usr/bin/clang++",
-	"/usr/bin/c++",
-};
-
+const String[] C0 = { "gcc", "clang", "cc" };
+const String[] C1 = { "g++", "clang++", "c++" };
 const String[] C2 = { "rustc" };
 const String[] C3 = { "go" };
-const String[] C4 = { "/home/cero/.nim/bin/nim", "/usr/bin/nim" };
-const String[] C5 = { "/home/cero/c3-compiler/c3c", "/usr/bin/c3c", "/home/cero/.local/bin/c3c" };
-const String[] C6 = { "/home/cero/llvm-install/bin/zig", "/usr/bin/zig" };
+const String[] C4 = { "nim" };
+const String[] C5 = { "c3c" };
+const String[] C6 = { "zig" };
 const String[] C7 = { "python3" };
 const String[] C8 = { "node" };
-const String[] C9 = { "/usr/bin/deno" };
+const String[] C9 = { "deno" };
 
 fn bool h(String p)
 {
