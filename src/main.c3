@@ -7,7 +7,7 @@ import std::core::mem::allocators;
 
 enum Lg
 {
-	C, X, R, G, N, M, Z, P, J, D, U
+	C, X, R, G, N, M, Z, P, J, D, K, O, L, U
 }
 
 const String[] C0 = { "gcc", "clang", "cc" };
@@ -20,6 +20,9 @@ const String[] C6 = { "zig" };
 const String[] C7 = { "python3" };
 const String[] C8 = { "node" };
 const String[] C9 = { "deno" };
+const String[] C10 = { "javac" };
+const String[] C11 = { "mojo" };
+const String[] C12 = { "dmd", "ldc2", "gdc" };
 
 fn bool h(String p)
 {
@@ -62,12 +65,11 @@ fn Lg e(String n)
 			case ".c3": return M;
 			case ".zig": return Z;
 			case ".py": return P;
-			case ".java": return J;
-			case ".js": return P;
-			case ".d": return D;
-			case ".mojo": return M;
-			case ".m": return C;
+			case ".js": return J;
 			case ".ts": return D;
+			case ".java": return K;
+			case ".mojo": return O;
+			case ".d": return L;
 			default: return U;
 		}
 	}
@@ -97,7 +99,7 @@ fn String r(String n)
 
 fn Lg s(String b)
 {
-	if (b.contains("gcc") || b.contains("g++") || b.contains("clang") || b.contains("/cc") || b.contains("tcc")) return C;
+	if (b.contains("gcc") || b.contains("clang") || b.contains("/cc") || b.contains("tcc")) return C;
 	if (b.contains("g++") || b.contains("clang++") || b.contains("c++")) return X;
 	if (b.contains("rustc")) return R;
 	if (b.contains("go")) return G;
@@ -107,8 +109,9 @@ fn Lg s(String b)
 	if (b.contains("python") || b.contains("python3")) return P;
 	if (b.contains("node")) return J;
 	if (b.contains("deno")) return D;
-	if (b.contains("java") || b.contains("javac")) return J;
-	if (b.contains("mojo")) return M;
+	if (b.contains("javac") || b.contains("java")) return K;
+	if (b.contains("mojo")) return O;
+	if (b.contains("dmd") || b.contains("ldc2") || b.contains("gdc")) return L;
 	return U;
 }
 
@@ -123,10 +126,11 @@ fn String[] b0(String co, String[] ua, String sf)
 
 fn String[] b1(String co, String[] ua, String sf)
 {
-	String[] ca = alloc::alloc_array(mem, String, 2 + ua.len);
+	String[] ca = alloc::alloc_array(mem, String, 3 + ua.len);
 	ca[0] = co;
-	ca[1] = "build";
+	ca[1] = "run";
 	for (sz i = 0; i < ua.len; i++) ca[2 + i] = ua[i];
+	ca[2 + ua.len] = sf;
 	return ca;
 }
 
@@ -144,6 +148,9 @@ fn String fc(Lg l)
 		case P: return f(C7);
 		case J: return f(C8);
 		case D: return f(C9);
+		case K: return f(C10);
+		case O: return f(C11);
+		case L: return f(C12);
 		case U: return "";
 	}
 }
@@ -167,6 +174,9 @@ fn void er(Lg l)
 		case P: io::eprintn("ccc: no Python interpreter found — install python3"); break;
 		case J: io::eprintn("ccc: no Node.js found — install node"); break;
 		case D: io::eprintn("ccc: no Deno found — install deno"); break;
+		case K: io::eprintn("ccc: no Java compiler found — install javac"); break;
+		case O: io::eprintn("ccc: no Mojo compiler found — install mojo"); break;
+		case L: io::eprintn("ccc: no D compiler found — install dmd or ldc2"); break;
 		case U: io::eprintn("ccc: unrecognized language"); break;
 	}
 }
@@ -184,13 +194,16 @@ fn void u()
 	io::printn("  .c    → C          (gcc, clang, cc)");
 	io::printn("  .cpp  → C++        (g++, clang++, c++)");
 	io::printn("  .rs   → Rust       (rustc)");
-	io::printn("  .go   → Go         (go)");
+	io::printn("  .go   → Go         (go run)");
 	io::printn("  .nim  → Nim        (nim)");
 	io::printn("  .c3   → C3         (c3c)");
 	io::printn("  .zig  → Zig        (zig)");
 	io::printn("  .py   → Python     (python3)");
 	io::printn("  .js   → Node.js    (node)");
 	io::printn("  .ts   → Deno       (deno)");
+	io::printn("  .java → Java       (javac + java)");
+	io::printn("  .mojo → Mojo       (mojo)");
+	io::printn("  .d    → D          (dmd, ldc2, gdc)");
 	io::printn("");
 	io::printn("Environment variables (planned):");
 	io::printn("  CC, CXX, RUSTC — override compiler path");
@@ -308,6 +321,6 @@ fn int main(String[] a)
 	}
 	io::eprintn("");
 
-	int? rc = process::run(cm, options: (SpawnOptions)(1 << 5));
+	int? rc = process::run(cm, options: SpawnOptions.INHERIT_STDIO | SpawnOptions.INHERIT_ENV);
 	return rc ?? 3;
 }
