@@ -7,22 +7,55 @@ import std::core::mem::allocators;
 
 enum Lg
 {
-	C, X, R, G, N, M, Z, P, J, D, K, O, L, U
+	C,
+	X,
+	R,
+	G,
+	N,
+	M,
+	Z,
+	P,
+	J,
+	D,
+	K,
+	O,
+	L,
+	U
 }
 
-const String[] C0 = { "gcc", "clang", "cc" };
-const String[] C1 = { "g++", "clang++", "c++" };
-const String[] C2 = { "rustc" };
-const String[] C3 = { "go" };
-const String[] C4 = { "nim" };
-const String[] C5 = { "c3c" };
-const String[] C6 = { "zig" };
-const String[] C7 = { "python3" };
-const String[] C8 = { "node" };
-const String[] C9 = { "deno" };
+
+const String[] C0  = { "gcc", "clang", "cc" };
+const String[] C1  = { "g++", "clang++", "c++" };
+const String[] C2  = { "rustc" };
+const String[] C3  = { "go" };
+const String[] C4  = { "nim" };
+const String[] C5  = { "c3c" };
+const String[] C6  = { "zig" };
+const String[] C7  = { "python3" };
+const String[] C8  = { "node" };
+const String[] C9  = { "tsc" };
 const String[] C10 = { "javac" };
 const String[] C11 = { "mojo" };
 const String[] C12 = { "dmd", "ldc2", "gdc" };
+
+
+
+
+const String[] R0  = { };
+const String[] R1  = { "vix" };
+const String[] R2  = { };
+const String[] R3  = { "go" };
+const String[] R4  = { "nim" };
+const String[] R5  = { "c3c" };
+const String[] R6  = { "zig" };
+const String[] R7  = { "python3" };
+const String[] R8  = { "node", "deno", "bun" };
+const String[] R9  = { "deno", "bun" };
+const String[] R10 = { "java" };
+const String[] R11 = { "mojo" };
+const String[] R12 = { };
+
+
 
 fn bool h(String p)
 {
@@ -38,6 +71,7 @@ fn bool h(String p)
 	return false;
 }
 
+
 fn String f(String[] v)
 {
 	for (sz i = 0; i < v.len; i++)
@@ -46,6 +80,7 @@ fn String f(String[] v)
 	}
 	return "";
 }
+
 
 fn Lg e(String n)
 {
@@ -76,6 +111,7 @@ fn Lg e(String n)
 	return U;
 }
 
+
 fn String r(String n)
 {
 	if (try ct = file::load_temp(n))
@@ -97,6 +133,7 @@ fn String r(String n)
 	return "";
 }
 
+
 fn Lg s(String b)
 {
 	if (b.contains("gcc") || b.contains("clang") || b.contains("/cc") || b.contains("tcc")) return C;
@@ -115,6 +152,7 @@ fn Lg s(String b)
 	return U;
 }
 
+
 fn String[] b0(String co, String[] ua, String sf)
 {
 	String[] ca = alloc::alloc_array(mem, String, 2 + ua.len);
@@ -123,6 +161,7 @@ fn String[] b0(String co, String[] ua, String sf)
 	ca[1 + ua.len] = sf;
 	return ca;
 }
+
 
 fn String[] b1(String co, String[] ua, String sf)
 {
@@ -133,6 +172,7 @@ fn String[] b1(String co, String[] ua, String sf)
 	ca[2 + ua.len] = sf;
 	return ca;
 }
+
 
 fn String fc(Lg l)
 {
@@ -155,10 +195,64 @@ fn String fc(Lg l)
 	}
 }
 
-fn bool ig(Lg l)
+
+fn String fr(Lg l)
 {
-	return l == G;
+	switch (l)
+	{
+		case C: return f(R0);
+		case X: return f(R1);
+		case R: return f(R2);
+		case G: return f(R3);
+		case N: return f(R4);
+		case M: return f(R5);
+		case Z: return f(R6);
+		case P: return f(R7);
+		case J: return f(R8);
+		case D: return f(R9);
+		case K: return f(R10);
+		case O: return f(R11);
+		case L: return f(R12);
+		case U: return "";
+	}
 }
+
+
+
+fn bool nr(Lg l)
+{
+	switch (l)
+	{
+		case G:
+		case N:
+		case M:
+		case Z:
+		case O:
+		case D: return true;
+		default: return false;
+	}
+}
+
+
+
+fn bool dr(Lg l)
+{
+	switch (l)
+	{
+		case G:
+		case N:
+		case M:
+		case Z:
+		case O:
+		case P:
+		case J:
+		case D: return true;
+		case X: return f(R1).len > 0;
+		default: return false;
+	}
+}
+
+
 
 fn void er(Lg l)
 {
@@ -173,11 +267,28 @@ fn void er(Lg l)
 		case Z: io::eprintn("ccc: no Zig compiler found — install zig"); break;
 		case P: io::eprintn("ccc: no Python interpreter found — install python3"); break;
 		case J: io::eprintn("ccc: no Node.js found — install node"); break;
-		case D: io::eprintn("ccc: no Deno found — install deno"); break;
+		case D: io::eprintn("ccc: no TypeScript compiler found — install tsc"); break;
 		case K: io::eprintn("ccc: no Java compiler found — install javac"); break;
 		case O: io::eprintn("ccc: no Mojo compiler found — install mojo"); break;
 		case L: io::eprintn("ccc: no D compiler found — install dmd or ldc2"); break;
 		case U: io::eprintn("ccc: unrecognized language"); break;
+	}
+}
+
+fn void er_runtime(Lg l)
+{
+	switch (l)
+	{
+		case D: io::eprintn("ccc: no TypeScript runtime found — install deno or bun"); break;
+		case X: io::eprintn("ccc: no C++ interpreter found — install vix, or use default compile mode"); break;
+		case P: io::eprintn("ccc: no Python interpreter found — install python3"); break;
+		case J: io::eprintn("ccc: no JavaScript runtime found — install node, deno or bun"); break;
+		case G: io::eprintn("ccc: no Go compiler found — install go"); break;
+		case N: io::eprintn("ccc: no Nim compiler found — install nim"); break;
+		case M: io::eprintn("ccc: no C3 compiler found — install c3c"); break;
+		case Z: io::eprintn("ccc: no Zig compiler found — install zig"); break;
+		case O: io::eprintn("ccc: no Mojo compiler found — install mojo"); break;
+		default: io::eprintn("ccc: no runtime available for this language"); break;
 	}
 }
 
@@ -186,28 +297,160 @@ fn void u()
 	io::printn("ccc — compiler command center v0.1");
 	io::printn("");
 	io::printn("Usage: c <source-file> [compiler-args...]");
-	io::printn("       c --detect <source-file>   # detect language only");
-	io::printn("       c --help                   # show this help");
-	io::printn("       c --version                # show version info");
+	io::printn("       c run <source-file> [args...]     # run instead of compile");
+	io::printn("       c -x <lang> <source-file> [...]   # force language");
+	io::printn("       c run -x <lang> <source-file> [...]");
+	io::printn("       c --detect <source-file>          # detect language only");
+	io::printn("       c --help                          # show this help");
+	io::printn("       c --version                       # show version info");
 	io::printn("");
 	io::printn("Auto-selects compiler by file extension (or #! line):");
-	io::printn("  .c    → C          (gcc, clang, cc)");
-	io::printn("  .cpp  → C++        (g++, clang++, c++)");
-	io::printn("  .rs   → Rust       (rustc)");
-	io::printn("  .go   → Go         (go run)");
-	io::printn("  .nim  → Nim        (nim)");
-	io::printn("  .c3   → C3         (c3c)");
-	io::printn("  .zig  → Zig        (zig)");
-	io::printn("  .py   → Python     (python3)");
-	io::printn("  .js   → Node.js    (node)");
-	io::printn("  .ts   → Deno       (deno)");
-	io::printn("  .java → Java       (javac + java)");
-	io::printn("  .mojo → Mojo       (mojo)");
-	io::printn("  .d    → D          (dmd, ldc2, gdc)");
+	io::printn("  .c    → C          (gcc, clang, cc)          run: compile + run");
+	io::printn("  .cpp  → C++        (g++, clang++, c++)       run: vix / compile+run");
+	io::printn("  .rs   → Rust       (rustc)                   run: compile + run");
+	io::printn("  .go   → Go         (go build)                run: go run");
+	io::printn("  .nim  → Nim        (nim)                     run: nim run");
+	io::printn("  .c3   → C3         (c3c)                     run: c3c run");
+	io::printn("  .zig  → Zig        (zig)                     run: zig run");
+	io::printn("  .py   → Python     (python3)                 run: python3");
+	io::printn("  .js   → Node.js    (node)                    run: node / deno / bun");
+	io::printn("  .ts   → TSC        (tsc)                     run: deno / bun");
+	io::printn("  .java → Java       (javac)                   run: java");
+	io::printn("  .mojo → Mojo       (mojo)                    run: mojo run");
+	io::printn("  .d    → D          (dmd, ldc2, gdc)          run: compile + run");
+	io::printn("");
+	io::printn("Languages for -x: c, c++/cpp, rust/rs, go, nim, c3, zig,");
+	io::printn("  python/py, js/node, ts/deno, java, mojo, d/dlang");
 	io::printn("");
 	io::printn("Environment variables (planned):");
 	io::printn("  CC, CXX, RUSTC — override compiler path");
 }
+
+
+
+
+
+fn int compile_and_run(String cc, Lg lg, String[] ua, String sf)
+{
+	String out = "/tmp/ccc_a.out";
+
+
+	String[] ca;
+	if (lg == L)
+	{
+
+		if (cc.contains("gdc"))
+		{
+			ca = alloc::alloc_array(mem, String, 4);
+			ca[0] = cc;
+			ca[1] = "-o";
+			ca[2] = out;
+			ca[3] = sf;
+		}
+		else
+		{
+
+			ca = alloc::alloc_array(mem, String, 3);
+			ca[0] = cc;
+			ca[1] = "-of".tconcat(out);
+			ca[2] = sf;
+		}
+	}
+	else
+	{
+		ca = alloc::alloc_array(mem, String, 4);
+		ca[0] = cc;
+		ca[1] = "-o";
+		ca[2] = out;
+		ca[3] = sf;
+	}
+
+
+	io::eprint("ccc: ");
+	for (sz i = 0; i < ca.len; i++)
+	{
+		if (i > 0)
+		{
+			io::eprint(" ");
+		}
+		io::eprint(ca[i]);
+	}
+	io::eprintn("");
+
+	int? cr = process::run(ca, options: SpawnOptions.INHERIT_STDIO | SpawnOptions.INHERIT_ENV);
+	if ((cr ?? 0) != 0) return cr ?? 1;
+
+
+	String[] ra = alloc::alloc_array(mem, String, 1 + ua.len);
+	ra[0] = out;
+	for (sz i = 0; i < ua.len; i++) ra[1 + i] = ua[i];
+
+	io::eprint("ccc: ");
+	for (sz i = 0; i < ra.len; i++)
+	{
+		if (i > 0)
+		{
+			io::eprint(" ");
+		}
+		io::eprint(ra[i]);
+	}
+	io::eprintn("");
+
+	int? rr = process::run(ra, options: SpawnOptions.INHERIT_STDIO | SpawnOptions.INHERIT_ENV);
+	return rr ?? 0;
+}
+
+
+
+fn Lg parse_lang(String x)
+{
+	switch (x)
+	{
+		case "c": return C;
+		case "c++":
+		case "cpp":
+		case "cxx":
+		case "cc": return X;
+		case "rust":
+		case "rs": return R;
+		case "go": return G;
+		case "nim": return N;
+		case "c3": return M;
+		case "zig": return Z;
+		case "python":
+		case "py": return P;
+		case "js":
+		case "javascript":
+		case "node": return J;
+		case "ts":
+		case "typescript":
+		case "deno": return D;
+		case "java": return K;
+		case "mojo": return O;
+		case "d":
+		case "dlang": return L;
+		default: return U;
+	}
+}
+
+
+
+fn int exec_cmd(String[] cm)
+{
+	io::eprint("ccc: ");
+	for (sz i = 0; i < cm.len; i++)
+	{
+		if (i > 0)
+		{
+			io::eprint(" ");
+		}
+		io::eprint(cm[i]);
+	}
+	io::eprintn("");
+	return process::run(cm, options: SpawnOptions.INHERIT_STDIO | SpawnOptions.INHERIT_ENV) ?? 3;
+}
+
+
 
 fn int main(String[] a)
 {
@@ -219,54 +462,97 @@ fn int main(String[] a)
 		return 0;
 	}
 
-	String fst = ra[0];
 
-	if (fst == "--help" || fst == "-h")
+	bool run_mode    = false;
+	Lg lang_override = U;
+	sz ai            = 0;
+
+
+	if (ai < ra.len && ra[ai] == "run")
 	{
-		u();
-		return 0;
+		run_mode = true;
+		ai++;
 	}
 
-	if (fst == "--version" || fst == "-V")
+
+	if (ai < ra.len && ra[ai] == "-x")
 	{
-		io::printn("ccc v0.1 — compiler command center / C3");
-		return 0;
+		if (ai + 1 >= ra.len)
+		{
+			io::eprintn("ccc: -x requires a language name");
+			io::eprintn("  try: c -x c++ file.txt");
+			return 1;
+		}
+		lang_override = parse_lang(ra[ai + 1]);
+		if (lang_override == U)
+		{
+			io::eprintf("ccc: unknown language: %s\n", ra[ai + 1]);
+			return 1;
+		}
+		ai += 2;
 	}
 
-	if (fst == "--detect")
+
+	String[] pa = { };
+	if (ai < ra.len) pa = ra[ai..];
+
+
+	if (!run_mode && lang_override == U && pa.len > 0)
 	{
-		if (ra.len < 2)
+		String fst = pa[0];
+		if (fst == "--help" || fst == "-h")
 		{
-			io::eprintn("ccc: --detect requires a source file");
-			return 1;
+			u();
+			return 0;
 		}
-		String t = ra[1];
-		if (!file::exists(t))
+		if (fst == "--version" || fst == "-V")
 		{
-			io::eprintf("ccc: file not found: %s\n", t);
-			return 1;
+			io::printn("ccc v0.1 — compiler command center / C3");
+			return 0;
 		}
-		Lg lg = e(t);
-		if (lg == U)
+		if (fst == "--detect")
 		{
-			String sb = r(t);
-			if (sb.len > 0)
+			if (pa.len < 2)
 			{
-				lg = s(sb);
-				if (lg != U)
-				{
-					io::printf("ccc: %s → %d (via shebang: %s)\n", t, (int)lg, sb);
-					return 0;
-				}
+				io::eprintn("ccc: --detect requires a source file");
+				return 1;
 			}
-			io::printf("ccc: %s → unknown\n", t);
-			return 2;
+			String t = pa[1];
+			if (!file::exists(t))
+			{
+				io::eprintf("ccc: file not found: %s\n", t);
+				return 1;
+			}
+			Lg lg = e(t);
+			if (lg == U)
+			{
+				String sb = r(t);
+				if (sb.len > 0)
+				{
+					lg = s(sb);
+					if (lg != U)
+					{
+						io::printf("ccc: %s → %d (via shebang: %s)\n", t, (int)lg, sb);
+						return 0;
+					}
+				}
+				io::printf("ccc: %s → unknown\n", t);
+				return 2;
+			}
+			io::printf("ccc: %s → %d\n", t, (int)lg);
+			return 0;
 		}
-		io::printf("ccc: %s → %d\n", t, (int)lg);
-		return 0;
 	}
 
-	String sf = fst;
+
+	if (pa.len == 0)
+	{
+		io::eprintn("ccc: missing source file");
+		io::eprintn("  try: c main.c3");
+		return 1;
+	}
+
+	String sf = pa[0];
 
 	if (!file::exists(sf))
 	{
@@ -274,30 +560,64 @@ fn int main(String[] a)
 		return 1;
 	}
 
-	Lg lg = e(sf);
 
+	Lg lg = lang_override;
 	if (lg == U)
 	{
-		String sb = r(sf);
-		if (sb.len > 0)
+		lg = e(sf);
+		if (lg == U)
 		{
-			lg = s(sb);
+			String sb = r(sf);
+			if (sb.len > 0) lg = s(sb);
 		}
 	}
 
 	if (lg == U)
 	{
 		io::eprintf("ccc: unrecognized file type: %s\n", sf);
-		io::eprintn("hint: use c --help for supported formats");
+		io::eprintn("hint: use c -x <lang> to force, or c --help for supported formats");
 		return 1;
 	}
 
-	String[] ua;
-	if (ra.len > 1) {
-		ua = ra[1..];
-	} else {
-		ua = {};
+
+	String[] ua = { };
+	if (pa.len > 1) ua = pa[1..];
+
+
+	if (run_mode)
+	{
+
+		if (dr(lg))
+		{
+			String rt = fr(lg);
+			if (rt.len == 0)
+			{
+				er_runtime(lg);
+				return 2;
+			}
+
+			String[] cm;
+			if (nr(lg))
+			{
+				cm = b1(rt, ua, sf);
+			}
+			else
+			{
+				cm = b0(rt, ua, sf);
+			}
+			return exec_cmd(cm);
+		}
+
+
+		String cc = fc(lg);
+		if (cc.len == 0)
+		{
+			er(lg);
+			return 2;
+		}
+		return compile_and_run(cc, lg, ua, sf);
 	}
+
 
 	String cc = fc(lg);
 	if (cc.len == 0)
@@ -306,21 +626,26 @@ fn int main(String[] a)
 		return 2;
 	}
 
+
+
+	bool compiled_kind = true;
+	switch (lg)
+	{
+		case P:
+		case J: compiled_kind = false; break;
+		default: break;
+	}
+
 	String[] cm;
-	if (ig(lg)) {
-		cm = b1(cc, ua, sf);
-	} else {
+	if (compiled_kind)
+	{
+		cm = b0(cc, ua, sf);
+	}
+	else
+	{
+
 		cm = b0(cc, ua, sf);
 	}
 
-	io::eprint("ccc: ");
-	for (sz i = 0; i < cm.len; i++)
-	{
-		if (i > 0) { io::eprint(" "); }
-		io::eprint(cm[i]);
-	}
-	io::eprintn("");
-
-	int? rc = process::run(cm, options: SpawnOptions.INHERIT_STDIO | SpawnOptions.INHERIT_ENV);
-	return rc ?? 3;
+	return exec_cmd(cm);
 }
