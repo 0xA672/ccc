@@ -1,1 +1,13 @@
 build/
+*.o
+*.obj
+*.exe
+*.out
+a.out
+~/
+.atomcode/
+.c3fmt
+.vscode/
+.idea/
+*.swp
+*.swo

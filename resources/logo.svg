@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect width="200" height="200" rx="20" fill="#2d2d2d"/>
+  <text x="100" y="115" font-family="monospace" font-size="80" font-weight="bold" fill="#00d4aa" text-anchor="middle">cc</text>
+  <text x="100" y="165" font-family="monospace" font-size="28" fill="#888" text-anchor="middle">Compiler Center</text>
+</svg>

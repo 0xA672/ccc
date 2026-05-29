@@ -2,6 +2,7 @@ module ccc;
 import std::io;
 import std::io::file;
 import std::os::process;
+import std::os::env;
 import std::core::mem::alloc;
 import std::core::mem::allocators;
 
@@ -21,6 +22,136 @@ enum Lg
 	O,
 	L,
 	U
+}
+
+const int CACHE_SIZE = 13;
+String[CACHE_SIZE] _cc_cache;
+bool _cache_loaded;
+char[1024] _cache_buf;
+
+
+fn bool _is_safe_path_char(char c)
+{
+	return (c >= 'A' && c <= 'Z')
+		|| (c >= 'a' && c <= 'z')
+		|| (c >= '0' && c <= '9')
+		|| c == '/' || c == '.' || c == '_' || c == '-'
+		|| c == ':' || c == '~';
+}
+
+
+fn bool _is_safe_path(String v)
+{
+	if (v.len == 0 || v.len > 256) return false;
+	for (sz i = 0; i < v.len; i++)
+	{
+		if (!_is_safe_path_char(v[i])) return false;
+	}
+	return true;
+}
+
+
+fn void _load_cache()
+{
+	if (try config_dir = env::get_config_dir(mem))
+	{
+		String cache_dir = config_dir;
+		String cfp = cache_dir.tconcat("/ccc/cache");
+		if (file::exists(cfp))
+		{
+			if (try data = file::load_temp(cfp))
+			{
+				String content = (String)data;
+				sz pos = 0;
+				while (pos < content.len)
+				{
+					sz? nl = content[pos..].index_of_char('\n');
+					sz end;
+					if (try nl2 = nl)
+					{
+						end = pos + nl2;
+					}
+					else
+					{
+						end = content.len;
+					}
+					if (end <= pos) { pos = end + 1; continue; }
+					String line = content[pos..end].trim();
+					pos = end + 1;
+					if (line.len == 0) continue;
+					sz? eq = line.index_of_char('=');
+					if (try eq2 = eq)
+					{
+						if (eq2 < 1) continue;
+						Lg lg = U;
+						switch (line[0])
+						{
+							case 'C': lg = C; case 'X': lg = X; case 'R': lg = R;
+							case 'G': lg = G; case 'N': lg = N; case 'M': lg = M;
+							case 'Z': lg = Z; case 'P': lg = P; case 'J': lg = J;
+							case 'T': lg = D; case 'V': lg = K; case 'O': lg = O;
+							case 'D': lg = L; default: continue;
+						}
+						String val = line[(eq2 + 1)..].trim();
+						if (val.len == 0) continue;
+						if (!_is_safe_path(val)) continue;
+						int idx = (int)lg;
+						if (idx >= 0 && idx < CACHE_SIZE)
+						{
+							char[] copy = alloc::alloc_array(mem, char, val.len);
+							for (sz k = 0; k < val.len; k++) copy[k] = val[k];
+							_cc_cache[idx] = (String)copy;
+						}
+					}
+				}
+			}
+		}
+	}
+	_cache_loaded = true;
+}
+
+
+fn void _save_cache()
+{
+	if (!_cache_loaded) return;
+	if (try config_dir = env::get_config_dir(mem))
+	{
+		String dir = config_dir;
+		String ccc_dir = dir.tconcat("/ccc");
+		String cfp = ccc_dir.tconcat("/cache");
+		if (!file::exists(ccc_dir))
+		{
+			int? mkres = process::run({ "mkdir", "-p", ccc_dir }, options: SpawnOptions.INHERIT_ENV);
+		}
+		// Build output buffer
+		sz total = 0;
+		for (int i = 0; i < CACHE_SIZE; i++)
+		{
+			if (_cc_cache[i].len > 0) total += _cc_cache[i].len + 3;
+		}
+		if (total == 0) return;
+		char[] buf = alloc::alloc_array(mem, char, total);
+		sz off = 0;
+		for (int i = 0; i < CACHE_SIZE; i++)
+		{
+			if (_cc_cache[i].len == 0) continue;
+			char c;
+			switch ((Lg)i)
+			{
+				case C: c = 'C'; case X: c = 'X'; case R: c = 'R';
+				case G: c = 'G'; case N: c = 'N'; case M: c = 'M';
+				case Z: c = 'Z'; case P: c = 'P'; case J: c = 'J';
+				case D: c = 'T'; case K: c = 'V'; case O: c = 'O';
+				case L: c = 'D'; default: c = '?';
+			}
+			buf[off++] = c;
+			buf[off++] = '=';
+			String sv = _cc_cache[i];
+			for (sz j = 0; j < sv.len; j++) buf[off++] = sv[j];
+			buf[off++] = '\n';
+		}
+		(void)file::save(cfp, buf);
+	}
 }
 
 
@@ -176,23 +307,38 @@ fn String[] b1(String co, String[] ua, String sf)
 
 fn String fc(Lg l)
 {
+	int idx = (int)l;
+	if (idx >= 0 && idx < CACHE_SIZE && _cc_cache[idx].len > 0)
+	{
+		String cached = _cc_cache[idx];
+		if (_is_safe_path(cached)) return cached;
+		_cc_cache[idx] = "";
+	}
+	String found;
 	switch (l)
 	{
-		case C: return f(C0);
-		case X: return f(C1);
-		case R: return f(C2);
-		case G: return f(C3);
-		case N: return f(C4);
-		case M: return f(C5);
-		case Z: return f(C6);
-		case P: return f(C7);
-		case J: return f(C8);
-		case D: return f(C9);
-		case K: return f(C10);
-		case O: return f(C11);
-		case L: return f(C12);
+		case C: found = f(C0); break;
+		case X: found = f(C1); break;
+		case R: found = f(C2); break;
+		case G: found = f(C3); break;
+		case N: found = f(C4); break;
+		case M: found = f(C5); break;
+		case Z: found = f(C6); break;
+		case P: found = f(C7); break;
+		case J: found = f(C8); break;
+		case D: found = f(C9); break;
+		case K: found = f(C10); break;
+		case O: found = f(C11); break;
+		case L: found = f(C12); break;
 		case U: return "";
 	}
+	if (found.len > 0 && idx >= 0 && idx < CACHE_SIZE)
+	{
+		char[] copy = alloc::alloc_array(mem, char, found.len);
+		for (sz k = 0; k < found.len; k++) copy[k] = found[k];
+		_cc_cache[idx] = (String)copy;
+	}
+	return found;
 }
 
 
@@ -493,6 +639,9 @@ fn int main(String[] a)
 	}
 
 
+	// Load cached compiler paths
+	_load_cache();
+
 	String[] pa = { };
 	if (ai < ra.len) pa = ra[ai..];
 
@@ -622,6 +771,7 @@ fn int main(String[] a)
 	String cc = fc(lg);
 	if (cc.len == 0)
 	{
+		_save_cache();
 		er(lg);
 		return 2;
 	}
@@ -647,5 +797,6 @@ fn int main(String[] a)
 		cm = b0(cc, ua, sf);
 	}
 
+	_save_cache();
 	return exec_cmd(cm);
 }
