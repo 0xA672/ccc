@@ -42,8 +42,8 @@ c main.c -O2 -Wall
 
 | Language | Extension(s)       | Compiler / Interpreter                    |
 |----------|-------------------|-------------------------------------------|
-| C        | `.c`              | `gcc`, `clang`, `zig cc`                  |
-| C++      | `.cpp` `.cc` `.cxx` | `g++`, `clang++`                        |
+| C        | `.c`              | `gcc`, `clang`, `cc`                      |
+| C++      | `.cpp` `.cc` `.cxx` `.hpp` | `g++`, `clang++`, `c++`         |
 | Rust     | `.rs`             | `rustc`                                   |
 | Go       | `.go`             | `go build` (handles directory structure)   |
 | Nim      | `.nim`            | `nim c`                                   |
@@ -51,10 +51,10 @@ c main.c -O2 -Wall
 | Zig      | `.zig`            | `zig`                                     |
 | Python   | `.py`             | `python3`                                 |
 | Java     | `.java`           | `javac + java`                            |
-| D        | `.d`              | `dmd`, `ldc2`                             |
+| D        | `.d`              | `dmd`, `ldc2`, `gdc`                      |
 | Mojo     | `.mojo`           | `mojo`                                    |
-| Node.js  | `.js`             | `node`                                    |
-| Deno     | `.ts`             | `deno`                                    |
+| Node.js  | `.js`             | `node`, `deno`, `bun`                     |
+| Deno     | `.ts`             | `deno`, `bun`                             |
 
 ## How It Works
 
