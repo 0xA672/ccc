@@ -24,14 +24,39 @@ enum Lg
 	U
 }
 
-const String[] LANG_NAMES = {
-    "c", "cpp", "rust", "go", "nim", "c3", "zig",
-    "python", "javascript", "typescript", "java", "mojo", "d"
-};
+struct LangEntry {
+    String lang;
+    String env;
+}
 
-const String[] ENV_NAMES = {
-    "CC", "CXX", "RUSTC", "GO", "NIMC", "C3C", "ZIG",
-    "PYTHON", "NODE", "TSC", "JAVAC", "MOJO", "DC"
+// ★ SINGLE SOURCE OF TRUTH ★
+// Add a new case here (+ an enum member in Lg) when adding a language.
+macro LangEntry lang_entry($idx)
+{
+    $switch ($idx):
+        $case 0: return { "c", "CC" };
+        $case 1: return { "cpp", "CXX" };
+        $case 2: return { "rust", "RUSTC" };
+        $case 3: return { "go", "GO" };
+        $case 4: return { "nim", "NIMC" };
+        $case 5: return { "c3", "C3C" };
+        $case 6: return { "zig", "ZIG" };
+        $case 7: return { "python", "PYTHON" };
+        $case 8: return { "javascript", "NODE" };
+        $case 9: return { "typescript", "TSC" };
+        $case 10: return { "java", "JAVAC" };
+        $case 11: return { "mojo", "MOJO" };
+        $case 12: return { "d", "DC" };
+        $default: return { "", "" };
+    $endswitch
+}
+
+// Runtime-accessible table generated from the macro
+const LangEntry[] _LANG_TABLE = {
+    lang_entry(0),  lang_entry(1),  lang_entry(2),  lang_entry(3),
+    lang_entry(4),  lang_entry(5),  lang_entry(6),  lang_entry(7),
+    lang_entry(8),  lang_entry(9),  lang_entry(10), lang_entry(11),
+    lang_entry(12)
 };
 
 const int CACHE_SIZE = 13;
@@ -98,9 +123,9 @@ fn void _load_cache()
 						if (val.len == 0) continue;
 						if (!_is_safe_path(val)) continue;
 						// Match key against language names
-						for (int i = 0; i < (int)LANG_NAMES.len; i++)
+						for (int i = 0; i < CACHE_SIZE; i++)
 						{
-							if (key == LANG_NAMES[i])
+							if (key == _LANG_TABLE[i].lang)
 							{
 								char[] copy = alloc::alloc_array(mem, char, val.len);
 								for (sz k = 0; k < val.len; k++) copy[k] = val[k];
@@ -134,7 +159,7 @@ fn void _save_cache()
 		for (int i = 0; i < CACHE_SIZE; i++)
 		{
 			if (_cc_cache[i].len > 0) {
-				total += LANG_NAMES[i].len + 1 + _cc_cache[i].len + 1;
+				total += _LANG_TABLE[i].lang.len + 1 + _cc_cache[i].len + 1;
 			}
 		}
 		if (total == 0) return;
@@ -143,7 +168,7 @@ fn void _save_cache()
 		for (int i = 0; i < CACHE_SIZE; i++)
 		{
 			if (_cc_cache[i].len == 0) continue;
-			String name = LANG_NAMES[i];
+			String name = _LANG_TABLE[i].lang;
 			for (sz j = 0; j < name.len; j++) buf[off++] = name[j];
 			buf[off++] = '=';
 			String sv = _cc_cache[i];
@@ -317,7 +342,7 @@ fn String fc(Lg l)
 	// 1) Environment variable override (highest priority)
 	if (idx >= 0 && idx < CACHE_SIZE)
 	{
-		if (try env_val = env::tget_var(ENV_NAMES[idx]))
+		if (try env_val = env::tget_var(_LANG_TABLE[idx].env))
 		{
 			if (env_val.len > 0 && _is_safe_path(env_val) && h(env_val))
 			{
