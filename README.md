@@ -2,7 +2,7 @@
 
 **ccc** is a smart compiler wrapper that automatically selects the right compiler or interpreter for your source files based on their extension or shebang line.
 
-Stop remembering `gcc`, `clang++`, `rustc`, `go build`, `python3`, `node`, and dozens of other commands — just use `c`.
+Stop remembering `gcc`, `clang++`, `rustc`, `go build`, `python3`, `node`, and dozens of other commands — just use `ccc` (or `c` if you prefer a shorter alias).
 
 ## Installation
 
@@ -10,7 +10,9 @@ Stop remembering `gcc`, `clang++`, `rustc`, `go build`, `python3`, `node`, and d
 git clone https://github.com/0xA672/ccc.git
 cd ccc
 c3c build
-ln -sf $(pwd)/build/ccc ~/.local/bin/c
+mkdir -p ~/.local/bin
+ln -sf $(pwd)/build/ccc ~/.local/bin/ccc
+ln -sf ~/.local/bin/ccc ~/.local/bin/c    # short alias — lazy friendly
 ```
 
 **Requires:** [C3 compiler](https://c3-lang.org/) ≥ 0.7.x
@@ -19,23 +21,23 @@ ln -sf $(pwd)/build/ccc ~/.local/bin/c
 
 ```bash
 # Auto-detect and compile/run
-c main.c          # → gcc / clang
-c main.cpp        # → g++ / clang++
-c main.rs         # → rustc
-c main.go         # → go build
-c main.py         # → python3
-c main.js         # → node
-c main.java       # → javac + java
-c main.c3         # → c3c
-c main.zig        # → zig
-c main.nim        # → nim c
-c main.ts         # → deno
+ccc main.c          # → gcc / clang
+ccc main.cpp        # → g++ / clang++
+ccc main.rs         # → rustc
+ccc main.go         # → go build
+ccc main.py         # → python3
+ccc main.js         # → node
+ccc main.java       # → javac + java
+ccc main.c3         # → c3c
+ccc main.zig        # → zig
+ccc main.nim        # → nim c
+ccc main.ts         # → deno
 
 # Detect language only (don't execute)
-c --detect main.go
+ccc --detect main.go
 
 # Pass extra flags
-c main.c -O2 -Wall
+ccc main.c -O2 -Wall
 ```
 
 ## Supported Languages
