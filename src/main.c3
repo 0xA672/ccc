@@ -29,6 +29,11 @@ const String[] LANG_NAMES = {
     "python", "javascript", "typescript", "java", "mojo", "d"
 };
 
+const String[] ENV_NAMES = {
+    "CC", "CXX", "RUSTC", "GO", "NIMC", "C3C", "ZIG",
+    "PYTHON", "NODE", "TSC", "JAVAC", "MOJO", "DC"
+};
+
 const int CACHE_SIZE = 13;
 String[CACHE_SIZE] _cc_cache;
 bool _cache_loaded;
@@ -308,6 +313,23 @@ fn String[] b1(String co, String[] ua, String sf)
 fn String fc(Lg l)
 {
 	int idx = (int)l;
+
+	// 1) Environment variable override (highest priority)
+	if (idx >= 0 && idx < CACHE_SIZE)
+	{
+		if (try env_val = env::tget_var(ENV_NAMES[idx]))
+		{
+			if (env_val.len > 0 && _is_safe_path(env_val) && h(env_val))
+			{
+				char[] copy = alloc::alloc_array(mem, char, env_val.len);
+				for (sz k = 0; k < env_val.len; k++) copy[k] = env_val[k];
+				_cc_cache[idx] = (String)copy;
+				return env_val;
+			}
+		}
+	}
+
+	// 2) Cached value
 	if (idx >= 0 && idx < CACHE_SIZE && _cc_cache[idx].len > 0)
 	{
 		String cached = _cc_cache[idx];
@@ -468,8 +490,9 @@ fn void u()
 	io::printn("Languages for -x: c, c++/cpp, rust/rs, go, nim, c3, zig,");
 	io::printn("  python/py, js/node, ts/deno, java, mojo, d/dlang");
 	io::printn("");
-	io::printn("Environment variables (planned):");
-	io::printn("  CC, CXX, RUSTC — override compiler path");
+	io::printn("Environment variables (override compiler/interpreter path):");
+	io::printn("  CC, CXX, RUSTC, GO, NIMC, C3C, ZIG");
+	io::printn("  PYTHON, NODE, TSC, JAVAC, MOJO, DC");
 }
 
 
