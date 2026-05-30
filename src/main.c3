@@ -155,7 +155,7 @@ fn void _save_cache()
 }
 
 
-const String[] C0  = { "gcc", "clang", "cc" };
+const String[] C0  = { "gcc", "clang", "cc", "zig" };
 const String[] C1  = { "g++", "clang++", "c++" };
 const String[] C2  = { "rustc" };
 const String[] C3  = { "go" };
@@ -404,7 +404,7 @@ fn void er(Lg l)
 {
 	switch (l)
 	{
-		case C: io::eprintn("ccc: no C compiler found — install gcc or clang"); break;
+		case C: io::eprintn("ccc: no C compiler found — install gcc, clang, cc, or zig"); break;
 		case X: io::eprintn("ccc: no C++ compiler found — install g++ or clang++"); break;
 		case R: io::eprintn("ccc: no Rust compiler found — install rustc"); break;
 		case G: io::eprintn("ccc: no Go compiler found — install go"); break;
@@ -451,7 +451,7 @@ fn void u()
 	io::printn("       c --version                       # show version info");
 	io::printn("");
 	io::printn("Auto-selects compiler by file extension (or #! line):");
-	io::printn("  .c    → C          (gcc, clang, cc)          run: compile + run");
+	io::printn("  .c    → C          (gcc, clang, cc, zig cc)  run: compile + run");
 	io::printn("  .cpp  → C++        (g++, clang++, c++)       run: vix / compile+run");
 	io::printn("  .rs   → Rust       (rustc)                   run: compile + run");
 	io::printn("  .go   → Go         (go build)                run: go run");
@@ -501,6 +501,15 @@ fn int compile_and_run(String cc, Lg lg, String[] ua, String sf)
 			ca[1] = "-of".tconcat(out);
 			ca[2] = sf;
 		}
+	}
+	else if (lg == C && cc == "zig")
+	{
+		ca = alloc::alloc_array(mem, String, 5);
+		ca[0] = "zig";
+		ca[1] = "cc";
+		ca[2] = "-o";
+		ca[3] = out;
+		ca[4] = sf;
 	}
 	else
 	{
@@ -787,7 +796,15 @@ fn int main(String[] a)
 	}
 
 	String[] cm;
-	if (compiled_kind)
+	if (lg == C && cc == "zig")
+	{
+		cm = alloc::alloc_array(mem, String, 2 + ua.len);
+		cm[0] = "zig";
+		cm[1] = "cc";
+		for (sz i = 0; i < ua.len; i++) cm[2 + i] = ua[i];
+		cm[2 + ua.len] = sf;
+	}
+	else if (compiled_kind)
 	{
 		cm = b0(cc, ua, sf);
 	}

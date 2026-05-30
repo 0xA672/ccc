@@ -42,7 +42,7 @@ c main.c -O2 -Wall
 
 | Language | Extension(s)       | Compiler / Interpreter                    |
 |----------|-------------------|-------------------------------------------|
-| C        | `.c`              | `gcc`, `clang`, `cc`                      |
+| C        | `.c`              | `gcc`, `clang`, `cc`, `zig cc`           |
 | C++      | `.cpp` `.cc` `.cxx` `.hpp` | `g++`, `clang++`, `c++`         |
 | Rust     | `.rs`             | `rustc`                                   |
 | Go       | `.go`             | `go build` (handles directory structure)   |
