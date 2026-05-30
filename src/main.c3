@@ -489,13 +489,13 @@ fn void u()
 {
 	io::printn("ccc — compiler command center v0.1");
 	io::printn("");
-	io::printn("Usage: c <source-file> [compiler-args...]");
-	io::printn("       c run <source-file> [args...]     # run instead of compile");
-	io::printn("       c -x <lang> <source-file> [...]   # force language");
-	io::printn("       c run -x <lang> <source-file> [...]");
-	io::printn("       c --detect <source-file>          # detect language only");
-	io::printn("       c --help                          # show this help");
-	io::printn("       c --version                       # show version info");
+	io::printn("Usage: ccc <source-file> [compiler-args...]");
+	io::printn("       ccc run <source-file> [args...]     # run instead of compile");
+	io::printn("       ccc -x <lang> <source-file> [...]   # force language");
+	io::printn("       ccc run -x <lang> <source-file> [...]");
+	io::printn("       ccc --detect <source-file>          # detect language only");
+	io::printn("       ccc --help                          # show this help");
+	io::printn("       ccc --version                       # show version info");
 	io::printn("");
 	io::printn("Auto-selects compiler by file extension (or #! line):");
 	io::printn("  .c    → C          (gcc, clang, cc, zig cc)  run: compile + run");
@@ -768,6 +768,51 @@ fn int main(String[] a)
 		return 0;
 	}
 
+	// ── Top-level flags (before any mode parsing) ──────────────────────
+	String fst = ra[0];
+	if (fst == "--help" || fst == "-h")
+	{
+		u();
+		return 0;
+	}
+	if (fst == "--version" || fst == "-V")
+	{
+		io::printn("ccc v0.1 — compiler command center / C3");
+		return 0;
+	}
+	if (fst == "--detect")
+	{
+		if (ra.len < 2)
+		{
+			io::eprintn("ccc: --detect requires a source file");
+			return 1;
+		}
+		String t = ra[1];
+		if (!file::exists(t))
+		{
+			io::eprintf("ccc: file not found: %s\n", t);
+			return 1;
+		}
+		Lg lg = e(t);
+		if (lg == U)
+		{
+			String sb = r(t);
+			if (sb.len > 0)
+			{
+				lg = s(sb);
+				if (lg != U)
+				{
+					io::printf("ccc: %s → %s (via shebang: %s)\n", t, _LANG_TABLE[(int)lg].lang, sb);
+					return 0;
+				}
+			}
+			io::printf("ccc: %s → unknown\n", t);
+			return 2;
+		}
+		io::printf("ccc: %s → %s\n", t, _LANG_TABLE[(int)lg].lang);
+		return 0;
+	}
+
 
 	bool run_mode    = false;
 	Lg lang_override = U;
@@ -786,7 +831,7 @@ fn int main(String[] a)
 		if (ai + 1 >= ra.len)
 		{
 			io::eprintn("ccc: -x requires a language name");
-			io::eprintn("  try: c -x c++ file.txt");
+			io::eprintn("  try: ccc -x c++ file.txt");
 			return 1;
 		}
 		lang_override = parse_lang(ra[ai + 1]);
@@ -805,54 +850,6 @@ fn int main(String[] a)
 
 	String[] pa = { };
 	if (ai < ra.len) pa = ra[ai..];
-
-
-	if (!run_mode && lang_override == U && pa.len > 0)
-	{
-		String fst = pa[0];
-		if (fst == "--help" || fst == "-h")
-		{
-			u();
-			return 0;
-		}
-		if (fst == "--version" || fst == "-V")
-		{
-			io::printn("ccc v0.1 — compiler command center / C3");
-			return 0;
-		}
-		if (fst == "--detect")
-		{
-			if (pa.len < 2)
-			{
-				io::eprintn("ccc: --detect requires a source file");
-				return 1;
-			}
-			String t = pa[1];
-			if (!file::exists(t))
-			{
-				io::eprintf("ccc: file not found: %s\n", t);
-				return 1;
-			}
-			Lg lg = e(t);
-			if (lg == U)
-			{
-				String sb = r(t);
-				if (sb.len > 0)
-				{
-					lg = s(sb);
-					if (lg != U)
-					{
-						io::printf("ccc: %s → %d (via shebang: %s)\n", t, (int)lg, sb);
-						return 0;
-					}
-				}
-				io::printf("ccc: %s → unknown\n", t);
-				return 2;
-			}
-			io::printf("ccc: %s → %d\n", t, (int)lg);
-			return 0;
-		}
-	}
 
 
 	if (pa.len == 0)
