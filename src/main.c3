@@ -524,25 +524,138 @@ fn void u()
 
 
 
+fn uint _fnv1a(String s)
+{
+	uint h = 2166136261u;
+	for (sz i = 0; i < s.len; i++)
+	{
+		h ^= (uint)(s[i]);
+		h *= 16777619u;
+	}
+	return h;
+}
+
+fn String _hex(Allocator alloc, uint v)
+{
+	char[] buf = alloc::alloc_array(alloc, char, 8);
+	// NOTE: C3 doesn't support local const arrays, use direct indexing
+	for (int i = 7; i >= 0; i--)
+	{
+		char c = (char)('0' + (v & 0xF));
+		if (c > '9') c = (char)(c + 39); // 'a' - '9' - 1 = 39
+		buf[i] = c;
+		v >>= 4;
+	}
+	return (String)buf;
+}
+
 fn int compile_and_run(String cc, Lg lg, String[] ua, String sf)
 {
-	String out = "/tmp/ccc_a.out";
+	// ── Smart Run Cache ──────────────────────────────────────────────
+	// Skip caching for C3 (handled internally by "c3c run")
+	bool skip_cache = (lg == M);
+	String runcache_bin;
+	String runcache_dir;
+	String mtime_path;
+	uint cache_key_val = _fnv1a(sf);
 
-
-	String[] ca;
-	if (lg == M)
+	if (!skip_cache)
 	{
-		// C3 run: use "c3c run" + user args
-		ca = alloc::alloc_array(mem, String, 3 + ua.len);
-		ca[0] = "c3c";
-		ca[1] = "run";
-		ca[2] = "--";
-		for (sz i = 0; i < ua.len; i++) ca[3 + i] = ua[i];
+		if (try config_dir = env::get_config_dir(mem))
+		{
+			String key_str = _hex(mem, cache_key_val);
+			runcache_dir = config_dir.tconcat("/ccc/runcache/").tconcat(key_str);
+			runcache_bin = runcache_dir.tconcat("/bin");
+			mtime_path   = runcache_dir.tconcat("/mtime");
+		}
+		else
+		{
+			skip_cache = true;
+		}
 	}
-	else if (lg == L)
-	{
 
-		if (cc.contains("gdc"))
+	bool cache_hit = false;
+	if (!skip_cache)
+	{
+		if (try src_mtime = file::last_modified(sf))
+		{
+			if (file::exists(runcache_bin) && file::exists(mtime_path))
+			{
+				if (try mtime_data = file::load_temp(mtime_path))
+				{
+					String mtime_str = ((String)mtime_data).trim();
+					if (try cached_mtime = mtime_str.to_long())
+					{
+						cache_hit = ((long)cached_mtime == (long)src_mtime);
+					}
+				}
+			}
+		}
+	}
+
+	String out;
+	if (cache_hit)
+	{
+		out = runcache_bin;
+		io::eprintn("ccc: [cached]");
+	}
+	else
+	{
+		if (!skip_cache)
+		{
+			out = runcache_bin;
+			if (!file::exists(runcache_dir))
+			{
+				(void)process::run({ "mkdir", "-p", runcache_dir }, options: SpawnOptions.INHERIT_ENV);
+			}
+		}
+		else
+		{
+			out = "/tmp/ccc_a.out";
+		}
+	}
+
+	// ── Compile ──────────────────────────────────────────────────────
+	if (!cache_hit)
+	{
+		String[] ca;
+		if (lg == M)
+		{
+			// C3 run: use "c3c run" + user args
+			ca = alloc::alloc_array(mem, String, 3 + ua.len);
+			ca[0] = "c3c";
+			ca[1] = "run";
+			ca[2] = "--";
+			for (sz i = 0; i < ua.len; i++) ca[3 + i] = ua[i];
+		}
+		else if (lg == L)
+		{
+			if (cc.contains("gdc"))
+			{
+				ca = alloc::alloc_array(mem, String, 4);
+				ca[0] = cc;
+				ca[1] = "-o";
+				ca[2] = out;
+				ca[3] = sf;
+			}
+			else
+			{
+				ca = alloc::alloc_array(mem, String, 3);
+				ca[0] = cc;
+				ca[1] = "-of".tconcat(out);
+				ca[2] = sf;
+			}
+		}
+		else if (lg == C && cc == "zig")
+		{
+			ca = alloc::alloc_array(mem, String, 5);
+			ca[0] = "zig";
+			ca[1] = "cc";
+			ca[2] = "-o";
+			ca[3] = out;
+			ca[4] = sf;
+		}
+		else
 		{
 			ca = alloc::alloc_array(mem, String, 4);
 			ca[0] = cc;
@@ -550,49 +663,33 @@ fn int compile_and_run(String cc, Lg lg, String[] ua, String sf)
 			ca[2] = out;
 			ca[3] = sf;
 		}
-		else
-		{
 
-			ca = alloc::alloc_array(mem, String, 3);
-			ca[0] = cc;
-			ca[1] = "-of".tconcat(out);
-			ca[2] = sf;
+		io::eprint("ccc: ");
+		for (sz i = 0; i < ca.len; i++)
+		{
+			if (i > 0) io::eprint(" ");
+			io::eprint(ca[i]);
+		}
+		io::eprintn("");
+
+		int? cr = process::run(ca, options: SpawnOptions.INHERIT_STDIO | SpawnOptions.INHERIT_ENV);
+		if ((cr ?? 0) != 0) return cr ?? 1;
+
+		// Save mtime for cache
+		if (!skip_cache)
+		{
+			if (try src_mtime = file::last_modified(sf))
+			{
+				char[32] mtime_buf;
+				if (try mtime_str = io::bprintf(&mtime_buf, "%d", src_mtime))
+				{
+					file::save(mtime_path, mtime_str)!!;
+				}
+			}
 		}
 	}
-	else if (lg == C && cc == "zig")
-	{
-		ca = alloc::alloc_array(mem, String, 5);
-		ca[0] = "zig";
-		ca[1] = "cc";
-		ca[2] = "-o";
-		ca[3] = out;
-		ca[4] = sf;
-	}
-	else
-	{
-		ca = alloc::alloc_array(mem, String, 4);
-		ca[0] = cc;
-		ca[1] = "-o";
-		ca[2] = out;
-		ca[3] = sf;
-	}
 
-
-	io::eprint("ccc: ");
-	for (sz i = 0; i < ca.len; i++)
-	{
-		if (i > 0)
-		{
-			io::eprint(" ");
-		}
-		io::eprint(ca[i]);
-	}
-	io::eprintn("");
-
-	int? cr = process::run(ca, options: SpawnOptions.INHERIT_STDIO | SpawnOptions.INHERIT_ENV);
-	if ((cr ?? 0) != 0) return cr ?? 1;
-
-
+	// ── Run ──────────────────────────────────────────────────────────
 	String[] ra = alloc::alloc_array(mem, String, 1 + ua.len);
 	ra[0] = out;
 	for (sz i = 0; i < ua.len; i++) ra[1 + i] = ua[i];
@@ -600,10 +697,7 @@ fn int compile_and_run(String cc, Lg lg, String[] ua, String sf)
 	io::eprint("ccc: ");
 	for (sz i = 0; i < ra.len; i++)
 	{
-		if (i > 0)
-		{
-			io::eprint(" ");
-		}
+		if (i > 0) io::eprint(" ");
 		io::eprint(ra[i]);
 	}
 	io::eprintn("");
