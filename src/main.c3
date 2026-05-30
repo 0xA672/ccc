@@ -24,6 +24,11 @@ enum Lg
 	U
 }
 
+const String[] LANG_NAMES = {
+    "c", "cpp", "rust", "go", "nim", "c3", "zig",
+    "python", "javascript", "typescript", "java", "mojo", "d"
+};
+
 const int CACHE_SIZE = 13;
 String[CACHE_SIZE] _cc_cache;
 bool _cache_loaded;
@@ -83,24 +88,20 @@ fn void _load_cache()
 					if (try eq2 = eq)
 					{
 						if (eq2 < 1) continue;
-						Lg lg = U;
-						switch (line[0])
-						{
-							case 'C': lg = C; case 'X': lg = X; case 'R': lg = R;
-							case 'G': lg = G; case 'N': lg = N; case 'M': lg = M;
-							case 'Z': lg = Z; case 'P': lg = P; case 'J': lg = J;
-							case 'T': lg = D; case 'V': lg = K; case 'O': lg = O;
-							case 'D': lg = L; default: continue;
-						}
+						String key = line[0..eq2].trim();
 						String val = line[(eq2 + 1)..].trim();
 						if (val.len == 0) continue;
 						if (!_is_safe_path(val)) continue;
-						int idx = (int)lg;
-						if (idx >= 0 && idx < CACHE_SIZE)
+						// Match key against language names
+						for (int i = 0; i < (int)LANG_NAMES.len; i++)
 						{
-							char[] copy = alloc::alloc_array(mem, char, val.len);
-							for (sz k = 0; k < val.len; k++) copy[k] = val[k];
-							_cc_cache[idx] = (String)copy;
+							if (key == LANG_NAMES[i])
+							{
+								char[] copy = alloc::alloc_array(mem, char, val.len);
+								for (sz k = 0; k < val.len; k++) copy[k] = val[k];
+								_cc_cache[i] = (String)copy;
+								break;
+							}
 						}
 					}
 				}
@@ -123,11 +124,13 @@ fn void _save_cache()
 		{
 			int? mkres = process::run({ "mkdir", "-p", ccc_dir }, options: SpawnOptions.INHERIT_ENV);
 		}
-		// Build output buffer
+		// Build output buffer: name=value\n
 		sz total = 0;
 		for (int i = 0; i < CACHE_SIZE; i++)
 		{
-			if (_cc_cache[i].len > 0) total += _cc_cache[i].len + 3;
+			if (_cc_cache[i].len > 0) {
+				total += LANG_NAMES[i].len + 1 + _cc_cache[i].len + 1;
+			}
 		}
 		if (total == 0) return;
 		char[] buf = alloc::alloc_array(mem, char, total);
@@ -135,16 +138,8 @@ fn void _save_cache()
 		for (int i = 0; i < CACHE_SIZE; i++)
 		{
 			if (_cc_cache[i].len == 0) continue;
-			char c;
-			switch ((Lg)i)
-			{
-				case C: c = 'C'; case X: c = 'X'; case R: c = 'R';
-				case G: c = 'G'; case N: c = 'N'; case M: c = 'M';
-				case Z: c = 'Z'; case P: c = 'P'; case J: c = 'J';
-				case D: c = 'T'; case K: c = 'V'; case O: c = 'O';
-				case L: c = 'D'; default: c = '?';
-			}
-			buf[off++] = c;
+			String name = LANG_NAMES[i];
+			for (sz j = 0; j < name.len; j++) buf[off++] = name[j];
 			buf[off++] = '=';
 			String sv = _cc_cache[i];
 			for (sz j = 0; j < sv.len; j++) buf[off++] = sv[j];
@@ -195,7 +190,12 @@ fn bool h(String p)
 		return file::exists(p);
 	}
 	char[256] buf;
-	if (try r = process::run_capture_stdout(buf[..], { "which", p }))
+	// Try POSIX `which` first, then Windows `where`
+	if (try r = process::run_capture_stdout(buf[..], { "which", p }, options: SpawnOptions.INHERIT_ENV))
+	{
+		if (r.len > 0) return true;
+	}
+	if (try r = process::run_capture_stdout(buf[..], { "where", p }, options: SpawnOptions.INHERIT_ENV))
 	{
 		return r.len > 0;
 	}
@@ -482,7 +482,16 @@ fn int compile_and_run(String cc, Lg lg, String[] ua, String sf)
 
 
 	String[] ca;
-	if (lg == L)
+	if (lg == M)
+	{
+		// C3 run: use "c3c run" + user args
+		ca = alloc::alloc_array(mem, String, 3 + ua.len);
+		ca[0] = "c3c";
+		ca[1] = "run";
+		ca[2] = "--";
+		for (sz i = 0; i < ua.len; i++) ca[3 + i] = ua[i];
+	}
+	else if (lg == L)
 	{
 
 		if (cc.contains("gdc"))
@@ -650,6 +659,7 @@ fn int main(String[] a)
 
 	// Load cached compiler paths
 	_load_cache();
+	defer _save_cache();
 
 	String[] pa = { };
 	if (ai < ra.len) pa = ra[ai..];
@@ -780,7 +790,6 @@ fn int main(String[] a)
 	String cc = fc(lg);
 	if (cc.len == 0)
 	{
-		_save_cache();
 		er(lg);
 		return 2;
 	}
@@ -804,6 +813,13 @@ fn int main(String[] a)
 		for (sz i = 0; i < ua.len; i++) cm[2 + i] = ua[i];
 		cm[2 + ua.len] = sf;
 	}
+	else if (lg == M)
+	{
+		// C3 uses "c3c build" rather than passing source directly
+		cm = alloc::alloc_array(mem, String, 2);
+		cm[0] = "c3c";
+		cm[1] = "build";
+	}
 	else if (compiled_kind)
 	{
 		cm = b0(cc, ua, sf);
@@ -814,6 +830,5 @@ fn int main(String[] a)
 		cm = b0(cc, ua, sf);
 	}
 
-	_save_cache();
 	return exec_cmd(cm);
 }
