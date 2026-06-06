@@ -1,40 +1,40 @@
-# ccc — 编译器命令中心
+# ccc — Compiler Command Center
 
-## 目录结构
+## Directory Structure
 
 ```
 ccc/
-├── docs/          # 文档
-├── lib/           # C3 库模块
-├── resources/     # 资源文件
-├── scripts/       # 构建/安装/测试脚本
-├── src/           # 源码 (main.c3)
-├── test/          # C3 单元测试 + 测试输入文件
-├── project.json   # C3 项目配置
-└── README.md      # 项目说明
+├── docs/          # Documentation
+├── lib/           # C3 library modules
+├── resources/     # Resource files
+├── scripts/       # Build / install / test scripts
+├── src/           # Source code (main.c3)
+├── test/          # C3 unit tests + test input files
+├── project.json   # C3 project configuration
+└── README.md      # Project overview
 ```
 
 ## docs/
 
-包含使用文档、man page、架构说明等。
+Contains usage documentation, man pages, architecture notes, etc.
 
 ## lib/
 
-C3 库依赖搜索路径 (`dependency-search-paths` 配置指向此处)。
-可放入复用的 C3 模块，供 `src/` 引用。
+C3 library dependency search path (`dependency-search-paths` in project.json points here).
+Reusable C3 modules can be placed here for `src/` to import.
 
 ## resources/
 
-项目相关的资源文件：logo、配置样例、样例源码等。
+Project-related resource files: logo, configuration examples, sample source code, etc.
 
 ## scripts/
 
-辅助脚本：
-- `scripts/install.sh` — 安装 ccc 到系统路径
-- `scripts/test.sh` — 运行完整测试套件
-- `scripts/format.sh` — 格式化代码
+Helper scripts:
+- `scripts/install.sh` — Install ccc to system path
+- `scripts/test.sh` — Run the full test suite
+- `scripts/format.sh` — Format code
 
 ## test/
 
-C3 测试源码 (由 `project.json` 的 `test-sources` 配置)。
-子目录 `test/inputs/` 包含各种语言的测试输入文件，用于集成测试。
+C3 test source files (configured by `test-sources` in project.json).
+The `test/inputs/` subdirectory contains test input files in various languages for integration testing.

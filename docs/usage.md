@@ -1,9 +1,9 @@
-# ccc 使用指南
+# ccc Usage Guide
 
-## 基本用法
+## Basic Usage
 
 ```bash
-# 自动检测并编译/运行
+# Auto-detect and compile/run
 ccc hello.c          # C → gcc
 ccc hello.cpp        # C++ → g++
 ccc hello.py         # Python → python3
@@ -11,48 +11,45 @@ ccc hello.js         # Node.js → node
 ccc hello.go         # Go → go build
 ccc hello.rs         # Rust → rustc
 
-# 仅检测语言
+# Detect language only
 ccc --detect hello.c
 
-# 传递额外参数
+# Pass extra arguments
 ccc hello.c -O2 -Wall
 ccc hello.cpp -std=c++20
 
-# 强制指定语言 (-x)
+# Force language (-x)
 ccc -x c hello.txt
 ccc -x c++ hello.txt
 
-# 运行模式
-ccc run hello.py     # 编译/解释后立即运行
-ccc run hello.c      # 编译并执行
-
-# 编译器选择
-ccc -c gcc hello.c   # 强制使用 gcc
-ccc -c clang hello.c # 强制使用 clang
+# Run mode — compile then execute
+ccc run hello.py     # Executed directly by interpreter
+ccc run hello.c      # Compiled then run (binary is cached)
+ccc run hello.go     # go run
 ```
 
-## 支持的语言
+## Supported Languages
 
-| 语言 | 扩展名 | 编译器/解释器 |
-|------|--------|---------------|
-| C | .c | gcc, clang, cc |
-| C++ | .cpp .cc .cxx .c++ | g++, clang++, c++ |
+| Language | Extension | Compiler / Interpreter |
+|----------|-----------|------------------------|
+| C | .c | gcc, clang, cc, zig cc |
+| C++ | .cpp .cc .cxx .hpp | g++, clang++, c++ |
 | Rust | .rs | rustc |
 | Go | .go | go build |
-| Nim | .nim | nim c |
+| Nim | .nim | nim |
 | C3 | .c3 | c3c |
 | Zig | .zig | zig |
 | Python | .py | python3 |
-| Java | .java | javac + java |
-| D | .d | dmd, ldc2 |
+| Java | .java | javac |
+| D | .d | dmd, ldc2, gdc |
 | Mojo | .mojo | mojo |
-| JavaScript | .js | node |
-| TypeScript | .ts | deno |
-| Shell | .sh | sh |
+| JavaScript | .js | node, deno, bun |
+| TypeScript | .ts | tsc / deno / bun |
 
-## 缓存机制
+## Caching
 
-ccc 会缓存编译器查找结果到 `~/.config/ccc/cache`，
-避免每次运行都执行 `which` 查找。
+ccc caches compiler lookup results to `~/.config/ccc/cache`,
+avoiding repeated `which` lookups on each invocation.
 
-缓存格式：每行一个 `L=path` 条目，其中 L 是语言代码字符。
+In run mode, compiled binaries are cached at `~/.config/ccc/runcache/<hash>/bin`,
+using source file mtime to determine whether recompilation is needed.

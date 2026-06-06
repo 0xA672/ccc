@@ -1,20 +1,21 @@
 /**
- * ccc — 编译器命令中心
+ * ccc — Compiler Command Center
  *
- * 智能编译器包装器，根据源文件扩展名或 shebang 自动选择正确的编译器/解释器。
+ * Smart compiler wrapper that automatically selects the correct compiler/interpreter
+ * based on source file extension or shebang line.
  *
- * 文档：
- *   - README.md — 快速入门
- *   - docs/usage.md — 详细用法
- *   - docs/directory-structure.md — 项目布局
+ * Documentation:
+ *   - README.md — Quick start
+ *   - docs/usage.md — Detailed usage
+ *   - docs/directory-structure.md — Project layout
  *
- * 构建：
+ * Build:
  *   c3c build
  *
- * 测试：
+ * Test:
  *   c3c test
  *   scripts/test.sh
  *
- * 安装：
+ * Install:
  *   scripts/install.sh
  */
