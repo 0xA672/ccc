@@ -144,6 +144,11 @@ const String[] _HELP_RUN = {
     "deno / bun", "java", "mojo run", "compile + run"
 };
 
+const String[] _HELP_EXT = {
+    ".c", ".cpp", ".rs", ".go", ".nim", ".c3", ".zig",
+    ".py", ".js", ".ts", ".java", ".mojo", ".d"
+};
+
 // ── Cache ──────────────────────────────────────────────────────────────────
 
 String[13] _cc_cache;
@@ -697,6 +702,16 @@ fn int main(String[] args)
         io::printn("ccc v0.1 — compiler command center / C3");
         return 0;
     }
+    if (first_arg == "--list" || first_arg == "-L")
+    {
+        io::printn("ccc -- supported languages:");
+        for (int i = 0; i < NUM_LANGUAGES; i++)
+        {
+            io::printf("  %-5s  %-14s  %-30s  run: %s\n",
+                _HELP_EXT[i], _LANG_NAME[i], _HELP_COMPILE[i], _HELP_RUN[i]);
+        }
+        return 0;
+    }
     if (first_arg == "--detect")
     {
         if (rest_args.len < 2)
@@ -871,14 +886,11 @@ fn void print_usage()
     io::printn("       ccc -x <lang> <source-file> [...]   # force language");
     io::printn("       ccc run -x <lang> <source-file> [...]");
     io::printn("       ccc --detect <source-file>          # detect language only");
+    io::printn("       ccc --list                          # list supported languages");
     io::printn("       ccc --help                          # show this help");
     io::printn("       ccc --version                       # show version info");
     io::printn("");
     io::printn("Auto-selects compiler by file extension (or #! line):");
-    const String[] _HELP_EXT = {
-        ".c", ".cpp", ".rs", ".go", ".nim", ".c3", ".zig",
-        ".py", ".js", ".ts", ".java", ".mojo", ".d"
-    };
     for (int i = 0; i < NUM_LANGUAGES; i++)
     {
         io::printf("  %-8s → %-12s (%s)  run: %s\n",
