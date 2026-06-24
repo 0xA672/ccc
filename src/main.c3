@@ -310,9 +310,10 @@ fn Language detect_lang_by_ext(String filename)
 
 fn String read_shebang(String filename)
 {
-    if (try ct = file::load_temp(filename))
+    char[256] buf;
+    if (try read = file::load_buffer(filename, buf[..]))
     {
-        String txt = (String)ct;
+        String txt = (String)read;
         if (try nl = txt.index_of_char('\n'))
         {
             String first_line = txt[0..nl];
@@ -321,9 +322,8 @@ fn String read_shebang(String filename)
         }
         else
         {
-            String first_line = txt;
-            if (!first_line.starts_with("#!")) return "";
-            return first_line[2..].trim();
+            if (!txt.starts_with("#!")) return "";
+            return txt[2..].trim();
         }
     }
     return "";
