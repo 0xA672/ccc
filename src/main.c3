@@ -153,6 +153,7 @@ const String[] _HELP_EXT = {
 
 String[13] _cc_cache;
 bool _cache_loaded;
+bool _quiet_mode;
 
 // ── Path safety ────────────────────────────────────────────────────────────
 
@@ -502,6 +503,7 @@ fn void print_runtime_error(Language lang)
 
 fn void print_cmd(String[] cmd)
 {
+    if (_quiet_mode) return;
     io::eprint("ccc: ");
     for (sz i = 0; i < cmd.len; i++)
     {
@@ -562,7 +564,7 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
     if (cache_hit)
     {
         out = runcache_bin;
-        io::eprintn("ccc: [cached]");
+        if (!_quiet_mode) io::eprintn("ccc: [cached]");
     }
     else
     {
@@ -684,6 +686,12 @@ fn int exec_cmd(String[] cmd)
 fn int main(String[] args)
 {
     String[] rest_args = args[1..];
+
+    if (rest_args.len > 0 && (rest_args[0] == "--quiet" || rest_args[0] == "-q"))
+    {
+        _quiet_mode = true;
+        rest_args = rest_args[1..];
+    }
 
     if (rest_args.len == 0)
     {
@@ -887,6 +895,7 @@ fn void print_usage()
     io::printn("       ccc run -x <lang> <source-file> [...]");
     io::printn("       ccc --detect <source-file>          # detect language only");
     io::printn("       ccc --list                          # list supported languages");
+    io::printn("       ccc --quiet <source-file> [...]     # suppress diagnostic output");
     io::printn("       ccc --help                          # show this help");
     io::printn("       ccc --version                       # show version info");
     io::printn("");
