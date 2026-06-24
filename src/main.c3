@@ -4,7 +4,7 @@ import std::io::file;
 import std::os::process;
 import std::os::env;
 import std::core::mem::alloc;
-import std::core::mem::allocators;
+import std::hash::fnv32a;
 
 // ── Language definitions (SINGLE SOURCE OF TRUTH) ─────────────────────────
 
@@ -163,14 +163,10 @@ fn bool _is_safe_path_char(char c)
 fn bool _is_safe_path(String v)
 {
     if (v.len == 0 || v.len > 256) return false;
-    // Reject path traversal
-    for (sz i = 0; i + 1 < v.len; i++)
-    {
-        if (v[i] == '.' && v[i + 1] == '.') return false;
-    }
     for (sz i = 0; i < v.len; i++)
     {
         if (!_is_safe_path_char(v[i])) return false;
+        if (v[i] == '.' && i + 1 < v.len && v[i + 1] == '.') return false;
     }
     return true;
 }
@@ -512,30 +508,6 @@ fn void print_cmd(String[] cmd)
 
 // ── Hash utilities ─────────────────────────────────────────────────────────
 
-fn uint _fnv1a(String s)
-{
-    uint h = 2166136261u;
-    for (sz i = 0; i < s.len; i++)
-    {
-        h ^= (uint)(s[i]);
-        h *= 16777619u;
-    }
-    return h;
-}
-
-fn String _hex(Allocator alloc, uint v)
-{
-    char[] buf = alloc::alloc_array(alloc, char, 8);
-    for (int i = 7; i >= 0; i--)
-    {
-        char c = (char)('0' + (v & 0xF));
-        if (c > '9') c = (char)(c + 39);
-        buf[i] = c;
-        v >>= 4;
-    }
-    return (String)buf;
-}
-
 // ── Compile and run ────────────────────────────────────────────────────────
 
 fn int compile_and_run(String compiler, Language lang, String[] user_args, String source_file)
@@ -544,13 +516,14 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
     String runcache_bin;
     String runcache_dir;
     String mtime_path;
-    uint cache_key = _fnv1a(source_file);
+    uint cache_key = fnv32a::hash(source_file);
 
     if (!skip_cache)
     {
         if (try config_dir = env::get_config_dir(mem))
         {
-            String key_str = _hex(mem, cache_key);
+            char[8] key_buf;
+            String key_str = (String)(io::bprintf(&key_buf, "%08x", cache_key) !!);
             runcache_dir = config_dir.tconcat("/ccc/runcache/").tconcat(key_str);
             runcache_bin = runcache_dir.tconcat("/bin");
             mtime_path   = runcache_dir.tconcat("/mtime");
