@@ -624,6 +624,14 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
             compile_args[3] = out;
             compile_args[4] = source_file;
         }
+        // Java: javac takes source file directly, no -o flag
+        else if (lang == K)
+        {
+            compile_args = alloc::alloc_array(mem, String, 2 + user_args.len);
+            compile_args[0] = compiler;
+            compile_args[1] = source_file;
+            for (sz i = 0; i < user_args.len; i++) compile_args[2 + i] = user_args[i];
+        }
         // Standard: compiler -o output source
         else
         {
@@ -652,9 +660,25 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
         }
     }
 
-    String[] run_args = alloc::alloc_array(mem, String, 1 + user_args.len);
-    run_args[0] = out;
-    for (sz i = 0; i < user_args.len; i++) run_args[1 + i] = user_args[i];
+    String[] run_args;
+    if (lang == K)
+    {
+        String class_name = source_file;
+        if (try dot = class_name.rindex_of_char('.'))
+        {
+            class_name = class_name[0..dot];
+        }
+        run_args = alloc::alloc_array(mem, String, 2 + user_args.len);
+        run_args[0] = "java";
+        run_args[1] = class_name;
+        for (sz i = 0; i < user_args.len; i++) run_args[2 + i] = user_args[i];
+    }
+    else
+    {
+        run_args = alloc::alloc_array(mem, String, 1 + user_args.len);
+        run_args[0] = out;
+        for (sz i = 0; i < user_args.len; i++) run_args[1 + i] = user_args[i];
+    }
 
     print_cmd(run_args);
 
