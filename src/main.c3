@@ -23,10 +23,13 @@ enum Language
     K,   // 10 Java
     O,   // 11 Mojo
     L,   // 12 D
-    U    // 13 Unknown
+    B,   // 13 Ruby
+    A,   // 14 Lua
+    H,   // 15 Haskell
+    U    // 16 Unknown
 }
 
-const int NUM_LANGUAGES = 13;
+const int NUM_LANGUAGES = 16;
 
 // Candidate arrays — one definition per language
 const String[] _COMP_C   = { "gcc", "clang", "cc", "zig" };
@@ -42,6 +45,9 @@ const String[] _COMP_D   = { "tsc" };
 const String[] _COMP_K   = { "javac" };
 const String[] _COMP_O   = { "mojo" };
 const String[] _COMP_L   = { "dmd", "ldc2", "gdc" };
+const String[] _COMP_B   = { "ruby" };
+const String[] _COMP_A   = { "lua" };
+const String[] _COMP_H   = { "ghc" };
 
 const String[] _RUN_C   = { };
 const String[] _RUN_X   = { "vix" };
@@ -56,53 +62,64 @@ const String[] _RUN_D   = { "deno", "bun" };
 const String[] _RUN_K   = { "java" };
 const String[] _RUN_O   = { "mojo" };
 const String[] _RUN_L   = { };
+const String[] _RUN_B   = { "ruby" };
+const String[] _RUN_A   = { "lua" };
+const String[] _RUN_H   = { };
 
 // Extension → language map.
 // Entries are checked in order; first match wins.
-const int EXT_COUNT = 17;
+const int EXT_COUNT = 20;
 const String[] _EXT_STRS = {
     ".c", ".cpp", ".cc", ".cxx", ".hpp",
     ".rs", ".go", ".nim", ".c3", ".zig",
-    ".py", ".js", ".ts", ".java", ".mojo", ".d", ".txt"
+    ".py", ".js", ".ts", ".java", ".mojo", ".d",
+    ".rb", ".lua", ".hs", ".txt"
 };
 const Language[] _EXT_LANGS = {
     C, X, X, X, X,
     R, G, N, M, Z,
     P, J, D, K, O, L,
+    B, A, H,
     U
 };
 
 // -x alias → language map
-const int ALIAS_COUNT = 22;
+const int ALIAS_COUNT = 28;
 const String[] _ALIAS_STRS = {
     "c", "c++", "cpp", "cxx", "cc",
     "rust", "rs", "go", "nim", "c3", "zig",
     "python", "py", "js", "javascript", "node",
-    "ts", "typescript", "deno", "java", "mojo", "d", "dlang"
+    "ts", "typescript", "deno", "java", "mojo", "d", "dlang",
+    "ruby", "rb", "lua", "haskell", "hs"
 };
 const Language[] _ALIAS_LANGS = {
     C, X, X, X, X,
     R, R, G, N, M, Z,
     P, P, J, J, J,
-    D, D, D, K, O, L, L
+    D, D, D, K, O, L, L,
+    B, B, A, H, H
 };
 
 // Per-language metadata — parallel arrays indexed by (int)Language
 const String[] _LANG_NAME = {
     "c", "cpp", "rust", "go", "nim", "c3", "zig",
-    "python", "javascript", "typescript", "java", "mojo", "d"
+    "python", "javascript", "typescript", "java", "mojo", "d",
+    "ruby", "lua", "haskell"
 };
 const String[] _LANG_ENV = {
     "CC", "CXX", "RUSTC", "GO", "NIMC", "C3C", "ZIG",
-    "PYTHON", "NODE", "TSC", "JAVAC", "MOJO", "DC"
+    "PYTHON", "NODE", "TSC", "JAVAC", "MOJO", "DC",
+    "RUBY", "LUA", "GHC"
 };
 const bool[] _LANG_NEEDS_RUN = {
     false, false, false, true, true, true, true,
-    false, false, true, false, true, false
+    false, false, true, false, true, false,
+    false, false, false
 };
 const bool[] _LANG_DIRECT_RT = {
     false, false, false, true, true, true, true,
-    true, true, true, false, true, false
+    true, true, true, false, true, false,
+    true, true, false
 };
 const String[] _ERR_COMPILE = {
     "ccc: no C compiler found — install gcc, clang, cc, or zig",
@@ -117,7 +134,10 @@ const String[] _ERR_COMPILE = {
     "ccc: no TypeScript compiler found — install tsc",
     "ccc: no Java compiler found — install javac",
     "ccc: no Mojo compiler found — install mojo",
-    "ccc: no D compiler found — install dmd or ldc2"
+    "ccc: no D compiler found — install dmd or ldc2",
+    "ccc: no Ruby interpreter found — install ruby",
+    "ccc: no Lua interpreter found — install lua",
+    "ccc: no Haskell compiler found — install ghc"
 };
 const String[] _ERR_RUNTIME = {
     "ccc: no runtime available for this language",
@@ -132,26 +152,32 @@ const String[] _ERR_RUNTIME = {
     "ccc: no TypeScript runtime found — install deno or bun",
     "ccc: no runtime available for this language",
     "ccc: no Mojo compiler found — install mojo",
+    "ccc: no runtime available for this language",
+    "ccc: no Ruby interpreter found — install ruby",
+    "ccc: no Lua interpreter found — install lua",
     "ccc: no runtime available for this language"
 };
 const String[] _HELP_COMPILE = {
     "gcc, clang, cc, zig cc", "g++, clang++, c++", "rustc", "go build",
-    "nim", "c3c", "zig", "python3", "node", "tsc", "javac", "mojo", "dmd, ldc2, gdc"
+    "nim", "c3c", "zig", "python3", "node", "tsc", "javac", "mojo", "dmd, ldc2, gdc",
+    "ruby", "lua", "ghc"
 };
 const String[] _HELP_RUN = {
     "compile + run", "vix / compile+run", "compile + run", "go run",
     "nim run", "c3c run", "zig run", "python3", "node / deno / bun",
-    "deno / bun", "java", "mojo run", "compile + run"
+    "deno / bun", "java", "mojo run", "compile + run",
+    "ruby", "lua", "compile + run"
 };
 
 const String[] _HELP_EXT = {
     ".c", ".cpp", ".rs", ".go", ".nim", ".c3", ".zig",
-    ".py", ".js", ".ts", ".java", ".mojo", ".d"
+    ".py", ".js", ".ts", ".java", ".mojo", ".d",
+    ".rb", ".lua", ".hs"
 };
 
 // ── Cache ──────────────────────────────────────────────────────────────────
 
-String[13] _cc_cache;
+String[16] _cc_cache;
 bool _cache_loaded;
 bool _quiet_mode;
 
@@ -350,6 +376,9 @@ fn Language detect_lang_by_shebang(String shebang_line)
     if (shebang_line.contains("javac") || shebang_line.contains("java")) return K;
     if (shebang_line.contains("mojo")) return O;
     if (shebang_line.contains("dmd") || shebang_line.contains("ldc2") || shebang_line.contains("gdc")) return L;
+    if (shebang_line.contains("ruby")) return B;
+    if (shebang_line.contains("lua")) return A;
+    if (shebang_line.contains("ghc") || shebang_line.contains("runghc") || shebang_line.contains("runhaskell")) return H;
     return U;
 }
 
@@ -419,6 +448,9 @@ fn String find_compiler(Language lang)
         case K: found = find_first_available(_COMP_K); break;
         case O: found = find_first_available(_COMP_O); break;
         case L: found = find_first_available(_COMP_L); break;
+        case B: found = find_first_available(_COMP_B); break;
+        case A: found = find_first_available(_COMP_A); break;
+        case H: found = find_first_available(_COMP_H); break;
         default: return "";
     }
     if (found.len > 0)
@@ -450,6 +482,9 @@ fn String find_runtime(Language lang)
         case K: return find_first_available(_RUN_K);
         case O: return find_first_available(_RUN_O);
         case L: return find_first_available(_RUN_L);
+        case B: return find_first_available(_RUN_B);
+        case A: return find_first_available(_RUN_A);
+        case H: return find_first_available(_RUN_H);
         default: return "";
     }
 }
@@ -931,9 +966,10 @@ fn void print_usage()
     }
     io::printn("");
     io::printn("Languages for -x: c, c++/cpp, rust/rs, go, nim, c3, zig,");
-    io::printn("  python/py, js/node, ts/deno, java, mojo, d/dlang");
+    io::printn("  python/py, js/node, ts/deno, java, mojo, d/dlang,");
+    io::printn("  ruby/rb, lua, haskell/hs");
     io::printn("");
     io::printn("Environment variables (override compiler/interpreter path):");
     io::printn("  CC, CXX, RUSTC, GO, NIMC, C3C, ZIG");
-    io::printn("  PYTHON, NODE, TSC, JAVAC, MOJO, DC");
+    io::printn("  PYTHON, NODE, TSC, JAVAC, MOJO, DC, RUBY, LUA, GHC");
 }
