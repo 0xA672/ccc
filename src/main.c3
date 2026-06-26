@@ -34,40 +34,42 @@ enum Language
 
 const int NUM_LANGUAGES = 16;
 
-// Candidate arrays — one definition per language
-const String[] _COMP_C   = { "gcc", "clang", "cc", "zig" };
-const String[] _COMP_X   = { "g++", "clang++", "c++" };
-const String[] _COMP_R   = { "rustc" };
-const String[] _COMP_G   = { "go" };
-const String[] _COMP_N   = { "nim" };
-const String[] _COMP_M   = { "c3c" };
-const String[] _COMP_Z   = { "zig" };
-const String[] _COMP_P   = { "python3" };
-const String[] _COMP_J   = { "node" };
-const String[] _COMP_D   = { "tsc" };
-const String[] _COMP_K   = { "javac" };
-const String[] _COMP_O   = { "mojo" };
-const String[] _COMP_L   = { "dmd", "ldc2", "gdc" };
-const String[] _COMP_B   = { "ruby" };
-const String[] _COMP_A   = { "lua" };
-const String[] _COMP_H   = { "ghc" };
-
-const String[] _RUN_C   = { };
-const String[] _RUN_X   = { "vix" };
-const String[] _RUN_R   = { };
-const String[] _RUN_G   = { "go" };
-const String[] _RUN_N   = { "nim" };
-const String[] _RUN_M   = { "c3c" };
-const String[] _RUN_Z   = { "zig" };
-const String[] _RUN_P   = { "python3" };
-const String[] _RUN_J   = { "node", "deno", "bun" };
-const String[] _RUN_D   = { "deno", "bun" };
-const String[] _RUN_K   = { "java" };
-const String[] _RUN_O   = { "mojo" };
-const String[] _RUN_L   = { };
-const String[] _RUN_B   = { "ruby" };
-const String[] _RUN_A   = { "lua" };
-const String[] _RUN_H   = { };
+const String[][] _COMPS = {
+    { "gcc", "clang", "cc", "zig" },           // C
+    { "g++", "clang++", "c++" },               // X
+    { "rustc" },                                // R
+    { "go" },                                   // G
+    { "nim" },                                  // N
+    { "c3c" },                                  // M
+    { "zig" },                                  // Z
+    { "python3" },                              // P
+    { "node" },                                 // J
+    { "tsc" },                                  // D
+    { "javac" },                                // K
+    { "mojo" },                                 // O
+    { "dmd", "ldc2", "gdc" },                  // L
+    { "ruby" },                                 // B
+    { "lua" },                                  // A
+    { "ghc" },                                  // H
+};
+const String[][] _RUNS = {
+    { },                                        // C
+    { "vix" },                                  // X
+    { },                                        // R
+    { "go" },                                   // G
+    { "nim" },                                  // N
+    { "c3c" },                                  // M
+    { "zig" },                                  // Z
+    { "python3" },                              // P
+    { "node", "deno", "bun" },                 // J
+    { "deno", "bun" },                          // D
+    { "java" },                                 // K
+    { "mojo" },                                 // O
+    { },                                        // L
+    { "ruby" },                                 // B
+    { "lua" },                                  // A
+    { "ghc" },                                  // H
+};
 
 // Extension → language map.
 // Entries are checked in order; first match wins.
@@ -276,9 +278,10 @@ fn void _save_cache()
         {
             $if CCC_DEBUG:
                 int? mkres = process::run({ "mkdir", "-p", ccc_dir }, options: SpawnOptions.INHERIT_ENV);
-                if ((mkres ?? 0) != 0) io::eprintf("ccc: debug: mkdir %s failed\n", ccc_dir);
+                if ((mkres ?? 0) != 0) { io::eprintf("ccc: debug: mkdir %s failed\n", ccc_dir); return; }
             $else
-                (void)process::run({ "mkdir", "-p", ccc_dir }, options: SpawnOptions.INHERIT_ENV);
+                int? mkres = process::run({ "mkdir", "-p", ccc_dir }, options: SpawnOptions.INHERIT_ENV);
+                if ((mkres ?? 0) != 0) return;
             $endif
         }
         sz total = 0;
@@ -318,20 +321,61 @@ fn void _save_cache()
 
 // ── PATH lookup ────────────────────────────────────────────────────────────
 
+fn String _get_tmpdir()
+{
+    String d = env::tget_var("TMPDIR") ?? "";
+    if (d.len > 0) return d;
+    d = env::tget_var("TMP") ?? "";
+    if (d.len > 0) return d;
+    d = env::tget_var("TEMP") ?? "";
+    if (d.len > 0) return d;
+    return "/tmp";
+}
+
 fn bool exists_on_path(String p)
 {
     if (p.contains("/") || p.contains("\\"))
     {
         return file::exists(p);
     }
-    char[256] buf;
-    if (try r = process::run_capture_stdout(buf[..], { "which", p }, options: SpawnOptions.INHERIT_ENV))
+    String path_var;
+    $if env::WIN32:
+        path_var = env::tget_var("PATH") ?? env::tget_var("Path") ?? "";
+    $else
+        path_var = env::tget_var("PATH") ?? "";
+    $endif
+    if (path_var.len == 0) return false;
+    $if env::WIN32:
+        const char SEP = ';';
+    $else
+        const char SEP = ':';
+    $endif
+    sz start = 0;
+    while (start < path_var.len)
     {
-        if (r.len > 0) return true;
-    }
-    if (try r = process::run_capture_stdout(buf[..], { "where", p }, options: SpawnOptions.INHERIT_ENV))
-    {
-        return r.len > 0;
+        sz? opt_end = path_var[start..].index_of_char(SEP);
+        sz end_pos;
+        if (try e = opt_end)
+        {
+            end_pos = start + e;
+        }
+        else
+        {
+            end_pos = path_var.len;
+        }
+        String dir = path_var[start..end_pos].trim();
+        start = end_pos + 1;
+        if (dir.len == 0) continue;
+        String full;
+        $if env::WIN32:
+            full = dir.tconcat("\\").tconcat(p);
+            if (file::exists(full)) return true;
+            full = dir.tconcat("\\").tconcat(p).tconcat(".exe");
+            if (file::exists(full)) return true;
+        $else
+            full = dir.tconcat("/").tconcat(p);
+            if (file::exists(full)) return true;
+        $endif
     }
     return false;
 }
@@ -362,7 +406,7 @@ fn Language detect_lang_by_ext(String filename)
 
 fn String read_shebang(String filename)
 {
-    char[256] buf;
+    char[4096] buf;
     if (try read = file::load_buffer(filename, buf[..]))
     {
         String txt = (String)read;
@@ -430,7 +474,6 @@ fn String find_compiler(Language lang)
     int idx = (int)lang;
     if (idx < 0 || idx >= NUM_LANGUAGES) return "";
 
-    // 1. Environment variable override
     if (try env_val = env::tget_var(_LANG_ENV[idx]))
     {
         if (env_val.len > 0 && _is_safe_path(env_val) && exists_on_path(env_val))
@@ -443,7 +486,6 @@ fn String find_compiler(Language lang)
         }
     }
 
-    // 2. Cache hit
     if (_cc_cache[idx].len > 0)
     {
         String cached = _cc_cache[idx];
@@ -451,28 +493,7 @@ fn String find_compiler(Language lang)
         _cc_cache[idx] = "";
     }
 
-    // 3. Search PATH
-    String found;
-    switch (lang)
-    {
-        case C: found = find_first_available(_COMP_C); break;
-        case X: found = find_first_available(_COMP_X); break;
-        case R: found = find_first_available(_COMP_R); break;
-        case G: found = find_first_available(_COMP_G); break;
-        case N: found = find_first_available(_COMP_N); break;
-        case M: found = find_first_available(_COMP_M); break;
-        case Z: found = find_first_available(_COMP_Z); break;
-        case P: found = find_first_available(_COMP_P); break;
-        case J: found = find_first_available(_COMP_J); break;
-        case D: found = find_first_available(_COMP_D); break;
-        case K: found = find_first_available(_COMP_K); break;
-        case O: found = find_first_available(_COMP_O); break;
-        case L: found = find_first_available(_COMP_L); break;
-        case B: found = find_first_available(_COMP_B); break;
-        case A: found = find_first_available(_COMP_A); break;
-        case H: found = find_first_available(_COMP_H); break;
-        default: return "";
-    }
+    String found = find_first_available(_COMPS[idx]);
     if (found.len > 0)
     {
         char[] copy = alloc::alloc_array(mem, char, found.len + 1);
@@ -487,26 +508,7 @@ fn String find_runtime(Language lang)
 {
     int idx = (int)lang;
     if (idx < 0 || idx >= NUM_LANGUAGES) return "";
-    switch (lang)
-    {
-        case C: return find_first_available(_RUN_C);
-        case X: return find_first_available(_RUN_X);
-        case R: return find_first_available(_RUN_R);
-        case G: return find_first_available(_RUN_G);
-        case N: return find_first_available(_RUN_N);
-        case M: return find_first_available(_RUN_M);
-        case Z: return find_first_available(_RUN_Z);
-        case P: return find_first_available(_RUN_P);
-        case J: return find_first_available(_RUN_J);
-        case D: return find_first_available(_RUN_D);
-        case K: return find_first_available(_RUN_K);
-        case O: return find_first_available(_RUN_O);
-        case L: return find_first_available(_RUN_L);
-        case B: return find_first_available(_RUN_B);
-        case A: return find_first_available(_RUN_A);
-        case H: return find_first_available(_RUN_H);
-        default: return "";
-    }
+    return find_first_available(_RUNS[idx]);
 }
 
 fn bool needs_run_subcmd(Language lang)
@@ -521,8 +523,7 @@ fn bool has_direct_runtime(Language lang)
     int idx = (int)lang;
     if (idx < 0 || idx >= NUM_LANGUAGES) return false;
     if (_LANG_DIRECT_RT[idx]) return true;
-    // C++ special case: vix interpreter
-    if (lang == X) return find_first_available(_RUN_X).len > 0;
+    if (lang == X) return find_first_available(_RUNS[idx]).len > 0;
     return false;
 }
 
@@ -574,11 +575,16 @@ fn void print_cmd(String[] cmd)
 
 fn int compile_and_run(String compiler, Language lang, String[] user_args, String source_file)
 {
-    bool skip_cache = (lang == M);  // C3 uses c3c run directly
+    bool skip_cache = (lang == M);
     String runcache_bin;
     String runcache_dir;
     String mtime_path;
-    uint cache_key = fnv32a::hash(source_file);
+    Fnv32a h;
+    h.init();
+    h.update(source_file);
+    h.update(compiler);
+    for (sz i = 0; i < user_args.len; i++) h.update(user_args[i]);
+    uint cache_key = (uint)h;
 
     if (!skip_cache)
     {
@@ -601,7 +607,16 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
     {
         if (try src_mtime = file::last_modified(source_file))
         {
-            if (file::exists(runcache_bin) && file::exists(mtime_path))
+            bool bin_ok;
+            if (lang == K)
+            {
+                bin_ok = file::exists(runcache_dir);
+            }
+            else
+            {
+                bin_ok = file::exists(runcache_bin);
+            }
+            if (bin_ok && file::exists(mtime_path))
             {
                 if (try mtime_data = file::load_temp(mtime_path))
                 {
@@ -630,9 +645,10 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
             {
                 $if CCC_DEBUG:
                     int? mkres = process::run({ "mkdir", "-p", runcache_dir }, options: SpawnOptions.INHERIT_ENV);
-                    if ((mkres ?? 0) != 0) io::eprintf("ccc: debug: mkdir %s failed\n", runcache_dir);
+                    if ((mkres ?? 0) != 0) { io::eprintf("ccc: debug: mkdir %s failed\n", runcache_dir); return 3; }
                 $else
-                    (void)process::run({ "mkdir", "-p", runcache_dir }, options: SpawnOptions.INHERIT_ENV);
+                    int? mkres = process::run({ "mkdir", "-p", runcache_dir }, options: SpawnOptions.INHERIT_ENV);
+                    if ((mkres ?? 0) != 0) return 3;
                 $endif
             }
         }
@@ -643,7 +659,7 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
             $else
                 uint _pid = (uint)posix::getpid();
             $endif
-            String tmpdir = env::tget_var("TMPDIR") ?? env::tget_var("TMP") ?? env::tget_var("TEMP") ?? "/tmp";
+            String tmpdir = _get_tmpdir();
             char[80] out_buf;
             out = (String)(io::bprintf(&out_buf, "%s/ccc_%08x_%08x.out", tmpdir, _pid, cache_key) !!);
         }
@@ -653,7 +669,6 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
     {
         String[] compile_args;
 
-        // C3: use "c3c run --" directly
         if (lang == M)
         {
             compile_args = alloc::alloc_array(mem, String, 3 + user_args.len);
@@ -662,7 +677,6 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
             compile_args[2] = "--";
             for (sz i = 0; i < user_args.len; i++) compile_args[3 + i] = user_args[i];
         }
-        // D: different compilers use different -o syntax
         else if (lang == L)
         {
             if (compiler.contains("gdc"))
@@ -681,7 +695,6 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
                 compile_args[2] = source_file;
             }
         }
-        // C with zig: needs "zig cc" subcommand
         else if (lang == C && compiler == "zig")
         {
             compile_args = alloc::alloc_array(mem, String, 5);
@@ -691,15 +704,14 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
             compile_args[3] = out;
             compile_args[4] = source_file;
         }
-        // Java: javac takes source file directly, no -o flag
         else if (lang == K)
         {
-            compile_args = alloc::alloc_array(mem, String, 2 + user_args.len);
+            compile_args = alloc::alloc_array(mem, String, 4);
             compile_args[0] = compiler;
-            compile_args[1] = source_file;
-            for (sz i = 0; i < user_args.len; i++) compile_args[2 + i] = user_args[i];
+            compile_args[1] = "-d";
+            compile_args[2] = runcache_dir;
+            compile_args[3] = source_file;
         }
-        // Standard: compiler -o output source
         else
         {
             compile_args = alloc::alloc_array(mem, String, 4);
@@ -735,10 +747,12 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
         {
             class_name = class_name[0..dot];
         }
-        run_args = alloc::alloc_array(mem, String, 2 + user_args.len);
+        run_args = alloc::alloc_array(mem, String, 4 + user_args.len);
         run_args[0] = "java";
-        run_args[1] = class_name;
-        for (sz i = 0; i < user_args.len; i++) run_args[2 + i] = user_args[i];
+        run_args[1] = "-cp";
+        run_args[2] = runcache_dir;
+        run_args[3] = class_name;
+        for (sz i = 0; i < user_args.len; i++) run_args[4 + i] = user_args[i];
     }
     else
     {
