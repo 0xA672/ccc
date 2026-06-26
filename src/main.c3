@@ -1,10 +1,13 @@
 module ccc;
 import std::io;
 import std::io::file;
+import std::io::os;
 import std::os::process;
 import std::os::env;
 import std::core::mem::alloc;
 import std::hash::fnv32a;
+import std::os::win32;
+import std::os::posix;
 
 // ── Language definitions (SINGLE SOURCE OF TRUTH) ─────────────────────────
 
@@ -180,6 +183,7 @@ const String[] _HELP_EXT = {
 String[16] _cc_cache;
 bool _cache_loaded;
 bool _quiet_mode;
+const bool CCC_DEBUG = false;
 
 // ── Path safety ────────────────────────────────────────────────────────────
 
@@ -270,7 +274,12 @@ fn void _save_cache()
         String cfp = ccc_dir.tconcat("/cache");
         if (!file::exists(ccc_dir))
         {
-            (void)process::run({ "mkdir", "-p", ccc_dir }, options: SpawnOptions.INHERIT_ENV);
+            $if CCC_DEBUG:
+                int? mkres = process::run({ "mkdir", "-p", ccc_dir }, options: SpawnOptions.INHERIT_ENV);
+                if ((mkres ?? 0) != 0) io::eprintf("ccc: debug: mkdir %s failed\n", ccc_dir);
+            $else
+                (void)process::run({ "mkdir", "-p", ccc_dir }, options: SpawnOptions.INHERIT_ENV);
+            $endif
         }
         sz total = 0;
         for (int i = 0; i < NUM_LANGUAGES; i++)
@@ -292,7 +301,18 @@ fn void _save_cache()
             for (sz j = 0; j < sv.len; j++) buf[off++] = sv[j];
             buf[off++] = '\n';
         }
-        (void)file::save(cfp, buf);
+        $if CCC_DEBUG:
+            if (try file::save(cfp, buf))
+            {
+                // success
+            }
+            else
+            {
+                io::eprintf("ccc: debug: failed to save cache to %s\n", cfp);
+            }
+        $else
+            (void)file::save(cfp, buf);
+        $endif
     }
 }
 
@@ -300,7 +320,7 @@ fn void _save_cache()
 
 fn bool exists_on_path(String p)
 {
-    if (p.contains("/"))
+    if (p.contains("/") || p.contains("\\"))
     {
         return file::exists(p);
     }
@@ -608,12 +628,24 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
             out = runcache_bin;
             if (!file::exists(runcache_dir))
             {
-                (void)process::run({ "mkdir", "-p", runcache_dir }, options: SpawnOptions.INHERIT_ENV);
+                $if CCC_DEBUG:
+                    int? mkres = process::run({ "mkdir", "-p", runcache_dir }, options: SpawnOptions.INHERIT_ENV);
+                    if ((mkres ?? 0) != 0) io::eprintf("ccc: debug: mkdir %s failed\n", runcache_dir);
+                $else
+                    (void)process::run({ "mkdir", "-p", runcache_dir }, options: SpawnOptions.INHERIT_ENV);
+                $endif
             }
         }
         else
         {
-            out = "/tmp/ccc_a.out";
+            $if env::WIN32:
+                uint _pid = win32::getCurrentProcessId();
+            $else
+                uint _pid = (uint)posix::getpid();
+            $endif
+            String tmpdir = env::tget_var("TMPDIR") ?? env::tget_var("TMP") ?? env::tget_var("TEMP") ?? "/tmp";
+            char[80] out_buf;
+            out = (String)(io::bprintf(&out_buf, "%s/ccc_%08x_%08x.out", tmpdir, _pid, cache_key) !!);
         }
     }
 
