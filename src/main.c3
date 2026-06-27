@@ -2,6 +2,7 @@ module ccc;
 import std::io;
 import std::io::file;
 import std::io::os;
+import std::io::path;
 import std::os::process;
 import std::os::env;
 import std::core::mem::alloc;
@@ -276,13 +277,8 @@ fn void _save_cache()
         String cfp = ccc_dir.tconcat("/cache");
         if (!file::exists(ccc_dir))
         {
-            $if CCC_DEBUG:
-                int? mkres = process::run({ "mkdir", "-p", ccc_dir }, options: SpawnOptions.INHERIT_ENV);
-                if ((mkres ?? 0) != 0) { io::eprintf("ccc: debug: mkdir %s failed\n", ccc_dir); return; }
-            $else
-                int? mkres = process::run({ "mkdir", "-p", ccc_dir }, options: SpawnOptions.INHERIT_ENV);
-                if ((mkres ?? 0) != 0) return;
-            $endif
+            // Use portable path::mkdir instead of "mkdir -p"
+            (void)path::mkdir(ccc_dir, true);
         }
         sz total = 0;
         for (int i = 0; i < NUM_LANGUAGES; i++)
@@ -323,57 +319,61 @@ fn void _save_cache()
 
 fn String _get_tmpdir()
 {
-    String d = env::tget_var("TMPDIR") ?? "";
-    if (d.len > 0) return d;
-    d = env::tget_var("TMP") ?? "";
-    if (d.len > 0) return d;
-    d = env::tget_var("TEMP") ?? "";
-    if (d.len > 0) return d;
-    return "/tmp";
+    if (try tmp = path::temp_directory(tmem))
+    {
+        return (String)tmp;
+    }
+    return ".";
 }
 
 fn bool exists_on_path(String p)
 {
-    if (p.contains("/") || p.contains("\\"))
+    // Handle multi-word names like "zig cc" — extract the first word for PATH lookup
+    String exe = p;
+    if (try space = p.index_of_char(' '))
     {
-        return file::exists(p);
+        exe = p[0..space];
     }
+
+    if (exe.contains("/") || exe.contains("\\"))
+    {
+        return file::exists(exe);
+    }
+
     String path_var;
     $if env::WIN32:
         path_var = env::tget_var("PATH") ?? env::tget_var("Path") ?? "";
-    $else
-        path_var = env::tget_var("PATH") ?? "";
-    $endif
-    if (path_var.len == 0) return false;
-    $if env::WIN32:
         const char SEP = ';';
     $else
+        path_var = env::tget_var("PATH") ?? "";
         const char SEP = ':';
     $endif
+    if (path_var.len == 0) return false;
+
+    // Walk through PATH entries by finding separators.
+    // Use manual character scanning to avoid issues with string slicing.
+    char[4096] dir_buf;
     sz start = 0;
     while (start < path_var.len)
     {
-        sz? opt_end = path_var[start..].index_of_char(SEP);
-        sz end_pos;
-        if (try e = opt_end)
-        {
-            end_pos = start + e;
-        }
-        else
-        {
-            end_pos = path_var.len;
-        }
-        String dir = path_var[start..end_pos].trim();
-        start = end_pos + 1;
-        if (dir.len == 0) continue;
+        sz end = start;
+        while (end < path_var.len && path_var[end] != SEP) end++;
+        if (start == end) { start = end + 1; continue; }
+        sz dlen = end - start;
+        if (dlen > 4095) dlen = 4095;
+        for (sz i = 0; i < dlen; i++) dir_buf[i] = path_var[start + i];
+        dir_buf[dlen] = '\0';
+        String dir = (String)dir_buf[..dlen];
+        start = end + 1;
+
         String full;
         $if env::WIN32:
-            full = dir.tconcat("\\").tconcat(p);
+            full = dir.tconcat("\\").tconcat(exe);
             if (file::exists(full)) return true;
-            full = dir.tconcat("\\").tconcat(p).tconcat(".exe");
+            full = dir.tconcat("\\").tconcat(exe).tconcat(".exe");
             if (file::exists(full)) return true;
         $else
-            full = dir.tconcat("/").tconcat(p);
+            full = dir.tconcat("/").tconcat(exe);
             if (file::exists(full)) return true;
         $endif
     }
@@ -427,22 +427,80 @@ fn String read_shebang(String filename)
 
 fn Language detect_lang_by_shebang(String shebang_line)
 {
-    if (shebang_line.contains("gcc") || shebang_line.contains("clang") || shebang_line.contains("/cc") || shebang_line.contains("tcc")) return C;
-    if (shebang_line.contains("g++") || shebang_line.contains("clang++") || shebang_line.contains("c++")) return X;
-    if (shebang_line.contains("rustc")) return R;
-    if (shebang_line.contains("go")) return G;
-    if (shebang_line.contains("nim")) return N;
-    if (shebang_line.contains("c3c")) return M;
-    if (shebang_line.contains("zig")) return Z;
-    if (shebang_line.contains("python") || shebang_line.contains("python3")) return P;
-    if (shebang_line.contains("node")) return J;
-    if (shebang_line.contains("deno")) return D;
-    if (shebang_line.contains("javac") || shebang_line.contains("java")) return K;
-    if (shebang_line.contains("mojo")) return O;
-    if (shebang_line.contains("dmd") || shebang_line.contains("ldc2") || shebang_line.contains("gdc")) return L;
-    if (shebang_line.contains("ruby")) return B;
-    if (shebang_line.contains("lua")) return A;
-    if (shebang_line.contains("ghc") || shebang_line.contains("runghc") || shebang_line.contains("runhaskell")) return H;
+    // Extract the basename of the interpreter (last path component after /)
+    String interp = shebang_line;
+    if (try last_slash = interp.rindex_of_char('/'))
+    {
+        interp = interp[(last_slash + 1)..];
+    }
+
+    // Handle "#!/usr/bin/env python3" patterns:
+    // if basename is "env" or "env -S", skip option flags and take the first
+    // non-option argument as the real interpreter
+    if (interp.starts_with("env"))
+    {
+        // Walk past all space-delimited tokens in shebang_line, looking
+        // for the first non-option argument after the interpreter path.
+        sz pos = 0;
+        bool after_path = false;
+        bool found = false;
+        for (sz i = 0; i < shebang_line.len && !found; i++)
+        {
+            if (shebang_line[i] == ' ')
+            {
+                if (pos < i)
+                {
+                    // End of a token
+                    String token = shebang_line[pos..i].trim();
+                    if (after_path && token.len > 0 && token[0] != '-')
+                    {
+                        interp = token;
+                        found = true;
+                    }
+                    pos = i + 1;
+                }
+                else
+                {
+                    pos = i + 1;
+                }
+                continue;
+            }
+            if (i > 0 && shebang_line[i - 1] == ' ') after_path = true;
+        }
+        // Last token
+        if (!found && after_path && pos < shebang_line.len)
+        {
+            String token = shebang_line[pos..].trim();
+            if (token.len > 0 && token[0] != '-')
+            {
+                interp = token;
+            }
+        }
+    }
+
+    // Strip any arguments (e.g. "python3 -u" → "python3")
+    if (try space = interp.index_of_char(' '))
+    {
+        interp = interp[0..space];
+    }
+
+    // Exact basename matching
+    if (interp == "gcc" || interp == "clang" || interp == "cc" || interp == "tcc") return C;
+    if (interp == "g++" || interp == "clang++" || interp == "c++") return X;
+    if (interp == "rustc") return R;
+    if (interp == "go") return G;
+    if (interp == "nim") return N;
+    if (interp == "c3c") return M;
+    if (interp == "zig") return Z;
+    if (interp == "python" || interp == "python3") return P;
+    if (interp == "node") return J;
+    if (interp == "deno") return D;
+    if (interp == "javac" || interp == "java") return K;
+    if (interp == "mojo") return O;
+    if (interp == "dmd" || interp == "ldc2" || interp == "gdc") return L;
+    if (interp == "ruby") return B;
+    if (interp == "lua") return A;
+    if (interp == "ghc" || interp == "runghc" || interp == "runhaskell") return H;
     return U;
 }
 
@@ -450,20 +508,32 @@ fn Language detect_lang_by_shebang(String shebang_line)
 
 fn String[] build_compile_cmd(String compiler, String[] user_args, String source_file)
 {
+    // Prefix files starting with "-" with "./" to prevent argument injection
+    String safe_file = source_file;
+    if (source_file.len > 0 && source_file[0] == '-' && !source_file.starts_with("--"))
+    {
+        safe_file = "./".tconcat(source_file);
+    }
     String[] cmd = alloc::alloc_array(mem, String, 2 + user_args.len);
     cmd[0] = compiler;
     for (sz i = 0; i < user_args.len; i++) cmd[1 + i] = user_args[i];
-    cmd[1 + user_args.len] = source_file;
+    cmd[1 + user_args.len] = safe_file;
     return cmd;
 }
 
 fn String[] build_run_subcmd(String runtime, String[] user_args, String source_file)
 {
+    // Prefix files starting with "-" with "./" to prevent argument injection
+    String safe_file = source_file;
+    if (source_file.len > 0 && source_file[0] == '-' && !source_file.starts_with("--"))
+    {
+        safe_file = "./".tconcat(source_file);
+    }
     String[] cmd = alloc::alloc_array(mem, String, 3 + user_args.len);
     cmd[0] = runtime;
     cmd[1] = "run";
     for (sz i = 0; i < user_args.len; i++) cmd[2 + i] = user_args[i];
-    cmd[2 + user_args.len] = source_file;
+    cmd[2 + user_args.len] = safe_file;
     return cmd;
 }
 
@@ -583,7 +653,7 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
     h.init();
     h.update(source_file);
     h.update(compiler);
-    for (sz i = 0; i < user_args.len; i++) h.update(user_args[i]);
+    // NOTE: user_args are runtime arguments and must NOT affect the cache key
     uint cache_key = (uint)h;
 
     if (!skip_cache)
@@ -643,13 +713,8 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
             out = runcache_bin;
             if (!file::exists(runcache_dir))
             {
-                $if CCC_DEBUG:
-                    int? mkres = process::run({ "mkdir", "-p", runcache_dir }, options: SpawnOptions.INHERIT_ENV);
-                    if ((mkres ?? 0) != 0) { io::eprintf("ccc: debug: mkdir %s failed\n", runcache_dir); return 3; }
-                $else
-                    int? mkres = process::run({ "mkdir", "-p", runcache_dir }, options: SpawnOptions.INHERIT_ENV);
-                    if ((mkres ?? 0) != 0) return 3;
-                $endif
+                // Use portable path::mkdir instead of "mkdir -p"
+                (void)path::mkdir(runcache_dir, true);
             }
         }
         else
@@ -695,14 +760,19 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
                 compile_args[2] = source_file;
             }
         }
-        else if (lang == C && compiler == "zig")
+        else if (lang == C && compiler.starts_with("zig"))
         {
+            String safe_file = source_file;
+            if (source_file.len > 0 && source_file[0] == '-' && !source_file.starts_with("--"))
+            {
+                safe_file = "./".tconcat(source_file);
+            }
             compile_args = alloc::alloc_array(mem, String, 5);
             compile_args[0] = "zig";
             compile_args[1] = "cc";
             compile_args[2] = "-o";
             compile_args[3] = out;
-            compile_args[4] = source_file;
+            compile_args[4] = safe_file;
         }
         else if (lang == K)
         {
@@ -724,7 +794,15 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
         print_cmd(compile_args);
 
         int? compile_result = process::run(compile_args, options: SpawnOptions.INHERIT_STDIO | SpawnOptions.INHERIT_ENV);
-        if ((compile_result ?? 0) != 0) return compile_result ?? 1;
+        if (try cr = compile_result)
+        {
+            if (cr != 0) return cr;
+        }
+        else
+        {
+            io::eprintn("ccc: failed to execute compiler");
+            return 1;
+        }
 
         if (!skip_cache)
         {
@@ -733,7 +811,7 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
                 char[32] mtime_buf;
                 if (try mtime_str = io::bprintf(&mtime_buf, "%d", src_mtime))
                 {
-                    file::save(mtime_path, mtime_str)!!;
+                    (void)file::save(mtime_path, mtime_str);
                 }
             }
         }
@@ -743,9 +821,20 @@ fn int compile_and_run(String compiler, Language lang, String[] user_args, Strin
     if (lang == K)
     {
         String class_name = source_file;
+        // Strip directory path — keep only the basename
+        if (try basename = source_file.file_tbasename())
+        {
+            class_name = basename;
+        }
         if (try dot = class_name.rindex_of_char('.'))
         {
             class_name = class_name[0..dot];
+        }
+        // Warn if the class name derived from the filename may not match
+        if (!_quiet_mode)
+        {
+            io::eprintf("ccc: running Java class '%s' (file: %s)\n", class_name, source_file);
+            io::eprintn("  note: the class name must match the public class declared in the source file");
         }
         run_args = alloc::alloc_array(mem, String, 4 + user_args.len);
         run_args[0] = "java";
@@ -894,7 +983,7 @@ fn int main(String[] args)
     if (positional.len == 0)
     {
         io::eprintn("ccc: missing source file");
-        io::eprintn("  try: c main.c3");
+        io::eprintn("  try: ccc main.c3");
         return 1;
     }
 
@@ -920,7 +1009,7 @@ fn int main(String[] args)
     if (lang == U)
     {
         io::eprintf("ccc: unrecognized file type: %s\n", source_file);
-        io::eprintn("hint: use c -x <lang> to force, or c --help for supported formats");
+        io::eprintn("hint: use ccc -x <lang> to force, or ccc --help for supported formats");
         return 1;
     }
 
@@ -968,13 +1057,18 @@ fn int main(String[] args)
     }
 
     String[] cmd;
-    if (lang == C && compiler == "zig")
+    if (lang == C && compiler.starts_with("zig"))
     {
+        String safe_file = source_file;
+        if (source_file.len > 0 && source_file[0] == '-' && !source_file.starts_with("--"))
+        {
+            safe_file = "./".tconcat(source_file);
+        }
         cmd = alloc::alloc_array(mem, String, 2 + user_args.len);
         cmd[0] = "zig";
         cmd[1] = "cc";
         for (sz i = 0; i < user_args.len; i++) cmd[2 + i] = user_args[i];
-        cmd[2 + user_args.len] = source_file;
+        cmd[2 + user_args.len] = safe_file;
     }
     else if (lang == M)
     {
